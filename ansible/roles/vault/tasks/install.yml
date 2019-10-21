@@ -1,0 +1,53 @@
+---
+- name: "Download Vault (local) → {{ vault_zip_url }}"
+  get_url:
+    url: "{{ vault_zip_url }}"
+    dest: "{{ role_path }}/files/{{ vault_pkg }}"
+    timeout: "42"
+  become: false
+  run_once: true
+  tags: installation
+  delegate_to: 127.0.0.1
+
+- name: Unarchive Vault (local)
+  unarchive:
+    src: "{{ role_path }}/files/{{ vault_pkg }}"
+    dest: "{{ role_path }}/files/"
+    creates: "{{ role_path }}/files/vault"
+  become: false
+  run_once: true
+  tags: installation
+  delegate_to: 127.0.0.1
+
+- name: Install Vault
+  become: true
+  copy:
+    src: "{{ role_path }}/files/vault"
+    dest: "{{ vault_bin_path }}"
+    mode: "0755"
+  notify: Restart vault
+  tags: installation
+
+- name: Cleanup (local)
+  file:
+    path: "{{ item }}"
+    state: "absent"
+  become: false
+  with_fileglob: "{{ role_path }}/files/vault"
+  run_once: true
+  tags: installation
+  delegate_to: 127.0.0.1
+
+- name: systemd setup
+  become: true
+  template:
+    src: systemd.j2
+    dest: /lib/systemd/system/vault.service
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: reload systemd
+  become: true
+  systemd:
+    daemon-reload: true

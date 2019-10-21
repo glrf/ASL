@@ -1,0 +1,51 @@
+---
+- name: Check if initialized
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/init
+    method: GET
+  tags: init
+  register: init
+
+- name: blub
+  debug:
+    msg: "{{ init.json.initialized }}"
+  tags: init
+
+- name: Init vault if not initialized
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/init
+    method: PUT
+    body: "{\"secret_shares\": 1, \"secret_threshold\": 1}"
+    body_format: json
+  when: not init.json.initialized
+  tags: init
+  register: key
+
+- name: blub
+  debug:
+    msg: "{{ key.json }}"
+  tags: init
+
+- name: Ensures key dir exists
+  file: 
+    path: "~/.vault/" 
+    state: directory
+  delegate_to: 127.0.0.1
+
+- copy:
+    content: "{{ key.json }}"
+    dest: "~/.vault/key.json"
+  delegate_to: 127.0.0.1
+
+- name: Unseal
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/unseal
+    method: PUT
+    body: "{\"key\": \"{{ item }}\"}"
+    body_format: json
+  with_items: "{{ key.json.keys_base64 }}"
+  tags: init
+  register: unsealed
+
+
+
