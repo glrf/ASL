@@ -2,4 +2,5 @@
 - hosts: all
   roles:
     - role: vault
+    - role: vault-ca
   

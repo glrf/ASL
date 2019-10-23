@@ -6,7 +6,7 @@
 - name: Read in key
   include_vars:
     file: "~/.vault/key.json"
-    name: key
+    name: restart_key
 
 - name: Unseal
   uri:
@@ -14,7 +14,7 @@
     method: PUT
     body: "{\"key\": \"{{ item }}\"}"
     body_format: json
-  with_items: "{{ key.json.keys_base64 }}"
+  with_items: "{{ restart_key.keys_base64 }}"
   tags: init
   register: unsealed
 

@@ -1,0 +1,27 @@
+---
+- name: Read in key
+  include_vars:
+    file: "~/.vault/key.json"
+    name: ca_key
+
+- name: Check if PKI is enabled
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/mounts
+    method: GET
+    status_code: 200
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  register: secret_engines
+
+- name: Enable PKI
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/mounts/pki
+    method: POST
+    body: "{\"type\":\"pki\"}"
+    body_format: json
+    status_code: 204
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  register: aaa
+  when: not secret_engines.json["pki/"] is defined
+
