@@ -42,7 +42,7 @@
 - name: Read in key
   include_vars:
     file: "~/.vault/key.json"
-    name: key
+    name: unseal_key
   tags: init
   when: sealed.json.sealed
 
@@ -52,7 +52,7 @@
     method: PUT
     body: "{\"key\": \"{{ item }}\"}"
     body_format: json
-  with_items: "{{ key.json.keys_base64 }}"
+  with_items: "{{ unseal_key.keys_base64 }}"
   tags: init
   register: unsealed
   when: sealed.json.sealed
