@@ -6,11 +6,6 @@
   tags: init
   register: init
 
-- name: blub
-  debug:
-    msg: "{{ init.json.initialized }}"
-  tags: init
-
 - name: Init vault if not initialized
   uri:
     url: http://127.0.0.1:8200/v1/sys/init
@@ -21,21 +16,35 @@
   tags: init
   register: key
 
-- name: blub
-  debug:
-    msg: "{{ key.json }}"
-  tags: init
-
 - name: Ensures key dir exists
   file: 
     path: "~/.vault/" 
     state: directory
   delegate_to: 127.0.0.1
+  tags: init
+  when: not init.json.initialized
 
-- copy:
+- name: Write key to file
+  copy:
     content: "{{ key.json }}"
     dest: "~/.vault/key.json"
   delegate_to: 127.0.0.1
+  tags: init
+  when: not init.json.initialized
+
+- name: Check if sealed
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/seal-status
+    method: GET
+  tags: init
+  register: sealed
+
+- name: Read in key
+  include_vars:
+    file: "~/.vault/key.json"
+    name: key
+  tags: init
+  when: sealed.json.sealed
 
 - name: Unseal
   uri:
@@ -46,6 +55,7 @@
   with_items: "{{ key.json.keys_base64 }}"
   tags: init
   register: unsealed
+  when: sealed.json.sealed
 
 
 
