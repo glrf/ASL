@@ -1,0 +1,20 @@
+---
+- name: restart
+  become: true
+  service: name=vault state=restarted
+
+- name: Read in key
+  include_vars:
+    file: "~/.vault/key.json"
+    name: restart_key
+
+- name: Unseal
+  uri:
+    url: http://127.0.0.1:8200/v1/sys/unseal
+    method: PUT
+    body: "{\"key\": \"{{ item }}\"}"
+    body_format: json
+  with_items: "{{ restart_key.keys_base64 }}"
+  tags: init
+  register: unsealed
+

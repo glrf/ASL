@@ -1,3 +1,13 @@
 ---
-- debug:
-    msg: "hi vault role"
+- name: Install
+  include: install.yml
+
+- name: Configure
+  include: configure.yml
+
+- name: Start vault
+  become: true
+  service: name=vault state=restarted
+
+- name: Init
+  include: init.yml
