@@ -11,3 +11,7 @@
 
 - name: Init
   include: init.yml
+
+- name: CA
+  include: ca.yml
+  when: vault_ca 
