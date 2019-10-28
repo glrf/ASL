@@ -2,3 +2,7 @@
 - name: restart docker
   become: true
   service: "name=docker state=restarted"
+
+- name: reboot machine
+  become: true
+  reboot:

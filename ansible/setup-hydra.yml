@@ -3,4 +3,4 @@
   roles:
     - role: hydra
   vars_files:
-    - ./hydra_vault
+    - ./vault
