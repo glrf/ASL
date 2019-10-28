@@ -1,0 +1,7 @@
+---
+- name: Start Hydra
+  include: start.yml
+
+# - name: Configure
+#   include: configure.yml
+
