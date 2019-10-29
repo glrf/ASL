@@ -1,0 +1,25 @@
+---
+- name: Install python docker module
+  become: true
+  package:
+    name: python-docker
+    state: present
+
+- name: Create network
+  docker_network:
+    name: "{{ hydra_network }}"
+
+- name: Create hydra container
+  docker_container:
+    name: hydra
+    image: "oryd/hydra:{{ hydra_version }}"
+    command: "serve all"
+    ports:
+     - "9000:4444"
+     - "9001:4445"
+    env:
+      DSN: memory
+      SECRETS_SYSTEM: "{{ hydra_system_secret }}"
+      URLS_SELF_ISSUER: "https://localhost:9000"
+      URLS_CONSENT: ""
+      URLS_LOGIN: ""

@@ -1,0 +1,11 @@
+
+docker_apt_release_channel: stable
+docker_apt_arch: amd64
+docker_apt_repository: "deb [arch={{ docker_apt_arch }}] https://download.docker.com/linux/debian stretch {{ docker_apt_release_channel }}"
+
+# Docker Compose options.
+docker_install_compose: True
+docker_compose_version: "1.21.2"
+docker_compose_path: /usr/local/bin/docker-compose
+
+docker_users: ["{{ ansible_user_id }}"]
