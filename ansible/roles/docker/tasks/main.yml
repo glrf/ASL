@@ -76,3 +76,7 @@
     groups: docker
     append: yes
   with_items: "{{ docker_users }}"
+  notify: reboot machine
+
+- name: Force flush handlers
+  meta: flush_handlers

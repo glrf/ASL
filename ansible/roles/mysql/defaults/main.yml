@@ -1,0 +1,6 @@
+---
+mysql_container_network: "mysql_net"
+mysql_root_password: "{{ vault_mysql_root_password }}"
+mysql_database: "imovies"
+mysql_initial_data_dir: "/home/{{ ansible_user_id }}/initial-data"
+mysql_data_dir: "/home/{{ ansible_user_id }}/data"

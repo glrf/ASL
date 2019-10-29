@@ -1,0 +1,50 @@
+---
+- name: Install python docker module
+  become: true
+  package:
+    name: python-docker
+    state: present
+
+- name: Create db network
+  docker_network:
+    name: "{{ mysql_container_network }}"
+
+- name: Create inital data dir for mysql
+  become: true
+  file:
+    path: "{{ mysql_initial_data_dir }}"
+    state: directory
+    mode: "u=rwx,g=r,o=rx"
+    owner: "{{ ansible_user_id }}"
+
+- name: Create data dir for mysql
+  become: true
+  file:
+    path: "{{ mysql_data_dir }}"
+    state: directory
+    mode: "u=rwx,g=r,o=r"
+    owner: "{{ ansible_user_id }}"
+
+- name: Copy initial data
+  copy:
+    src: ./files/imovies_users.dump
+    dest: "{{ mysql_initial_data_dir }}/imovies_users.dump"
+    mode: "u=rwx,g=rwx,o=rwx"
+
+- name: Copy initialisation script
+  copy:
+    src: ./files/load_dump.sh
+    dest: "{{ mysql_initial_data_dir }}/load_dump.sh"
+    mode: "u=rwx,g=rwx,o=rwx"
+
+- name: Create and Start MySQL Container
+  docker_container:
+    name: user_db
+    image: mysql
+    state: started
+    volumes:
+      - "{{ mysql_initial_data_dir }}:/docker-entrypoint-initdb.d"
+      - "{{ mysql_data_dir }}:/var/lib/mysql"
+    env:
+      MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+      MYSQL_DATABASE: "{{ mysql_database }}"

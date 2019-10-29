@@ -1,0 +1,9 @@
+---
+- hosts: all
+  roles:
+    - role: docker
+    - role: mysql
+  vars_files:
+    - ./vault
+  vars:
+    docker_install_compose: False
