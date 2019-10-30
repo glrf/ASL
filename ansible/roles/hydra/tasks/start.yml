@@ -17,9 +17,27 @@
     ports:
      - "9000:4444"
      - "9001:4445"
+    networks:
+      - name:  "{{ hydra_network }}"
     env:
       DSN: memory
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
       URLS_SELF_ISSUER: "https://localhost:9000"
       URLS_CONSENT: ""
-      URLS_LOGIN: ""
+      URLS_LOGIN: "http://localhost:8088"
+
+- name: Create Client
+  docker_container:
+    name: hydra-exec
+    image: "oryd/hydra:{{ hydra_version }}"
+    command: "clients create --skip-tls-verify \
+    --id test --secret blub \
+    --grant-types authorization_code,refresh_token,client_credentials,implicit \
+    --response-types token,code,id_token \
+    --callbacks http://127.0.0.1:9010/callback"
+    networks:
+      - name:  "{{ hydra_network }}"
+    env:
+      DSN: memory
+      SECRETS_SYSTEM: "{{ hydra_system_secret }}"
+      HYDRA_ADMIN: "https://hydra:4445"
