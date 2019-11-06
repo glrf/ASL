@@ -31,13 +31,14 @@
     name: hydra-exec
     image: "oryd/hydra:{{ hydra_version }}"
     command: "clients create --skip-tls-verify \
-    --id test --secret blub \
+    --id special_laura --secret blubaaaaahhhhhhhhh \
     --grant-types authorization_code,refresh_token,client_credentials,implicit \
     --response-types token,code,id_token \
+    --scope openid,offline \
     --callbacks http://127.0.0.1:9010/callback"
     networks:
       - name:  "{{ hydra_network }}"
     env:
       DSN: memory
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
-      HYDRA_ADMIN: "https://hydra:4445"
+      HYDRA_ADMIN_URL: "https://hydra:4445"

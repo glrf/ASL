@@ -2,3 +2,4 @@ devenv/vault/data/
 devenv/dev-vault.json
 **/.vagrant/**
 ansible/.secret
+.idea/
