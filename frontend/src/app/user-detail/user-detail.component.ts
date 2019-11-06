@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, Input, OnInit} from '@angular/core';
+import {User} from '../entities/user';
+import {UserService} from '../user.service';
 
 @Component({
   selector: 'app-user-detail',
@@ -7,9 +9,21 @@ import { Component, OnInit } from '@angular/core';
 })
 export class UserDetailComponent implements OnInit {
 
-  constructor() { }
+  @Input()
+  private uid: string;
+
+  private userInfo: User;
+
+
+  constructor(private userService: UserService) { }
 
   ngOnInit() {
+    this.userService.getUserInfo(this.uid).subscribe(user => this.userInfo = user);
+  }
+
+  startIssueCertificateProcess() {
+  }
+  startChangePasswordProcess() {
   }
 
 }
