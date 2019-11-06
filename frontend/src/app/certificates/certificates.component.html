@@ -1,1 +1,6 @@
-<p>certificates works!</p>
+<h2>Certificates</h2>
+<ul class="certificates">
+  <li *ngFor="let certificate of certificates">
+    <span class="badge">{{certificate.serial_number}}</span>
+  </li>
+</ul>
