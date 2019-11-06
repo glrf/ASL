@@ -1,3 +1,22 @@
-<h1>Your user info</h1>
+<div>
+  <div>
+    <h1>Your user info:</h1>
 
-<mat-table></mat-table>
+    <ul>
+      <li>First name: {{userInfo.firstName}}</li>
+      <li>Last name: {{userInfo.lastName}}</li>
+      <li>Email: {{userInfo.email}}</li>
+    </ul>
+  </div>
+
+  <div>
+    <button (click)="startIssueCertificateProcess()"> Issue Certificate </button>
+    <button (click)="startChangePasswordProcess()"> Change Password </button>
+  </div>
+
+
+
+</div>
+
+
+
