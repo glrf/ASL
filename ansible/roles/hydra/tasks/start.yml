@@ -23,8 +23,8 @@
       DSN: memory
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
       URLS_SELF_ISSUER: "https://localhost:9000"
-      URLS_CONSENT: ""
-      URLS_LOGIN: "http://localhost:8088"
+      URLS_CONSENT: "http://localhost:8088/consent"
+      URLS_LOGIN: "http://localhost:8088/login"
 
 - name: Create Client
   docker_container:
