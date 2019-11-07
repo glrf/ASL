@@ -57,22 +57,34 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authenticated := false
+	skip := false
+
 	// TODO(Fischi): We don't actually use the information we get. We should
 
-	//TODO: here the user has to login.
-
-	// Accept login request
-	acceptBody := AcceptLoginRequest{Subject: "sub", Remember: false, RememberFor: 300}
-	accRes, err := s.client.AcceptLogin(keys[0], acceptBody)
-	if err != nil {
-		log.Error("Error accepting login", "error", err)
-		s.httpInternalError(w, err)
-		return
+	if r.Method == http.MethodGet && !skip {
+		// TODO(Fischi): Show login screen
+		authenticated = true
 	}
 
-	// redirect
-	http.Redirect(w, r, accRes.RedirectTo, 302)
+	if r.Method == http.MethodPost {
+		// TODO(Fischi): Check authentication
+	}
 
+	// Accept login request
+	if authenticated {
+		acceptBody := AcceptLoginRequest{Subject: "sub", Remember: false, RememberFor: 300}
+		accRes, err := s.client.AcceptLogin(keys[0], acceptBody)
+		if err != nil {
+			log.Error("Error accepting login", "error", err)
+			s.httpInternalError(w, err)
+			return
+		}
+
+		// redirect
+		http.Redirect(w, r, accRes.RedirectTo, 302)
+	}
+	s.httpUnauthorized(w)
 }
 
 func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
@@ -84,9 +96,10 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 		s.httpBadRequest(w, "no login challenge provided")
 		return
 	}
+	challenge := keys[0]
 
 	//fetch information about the request
-	_, err := s.client.GetConsentInfo(keys[0])
+	_, err := s.client.GetConsentInfo(challenge)
 	if err != nil {
 		log.Error("Error getting consent info", "error", err)
 		s.httpInternalError(w, err)
