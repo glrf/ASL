@@ -1,4 +1,4 @@
-
+---
 vault_version: "1.2.3"
 vault_architecture_map:
   # this first entry seems... redundant (but it's required for reasons)
@@ -17,3 +17,8 @@ vault_config_path: /etc/vault.d
 vault_data_path: /var/vault
 
 vault_main_config: "{{ vault_config_path }}/vault_main.hcl"
+
+vault_secret_shares: "1"
+vault_secret_threshold: "1"
+
+vault_ca: true

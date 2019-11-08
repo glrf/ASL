@@ -10,7 +10,7 @@
   uri:
     url: http://127.0.0.1:8200/v1/sys/init
     method: PUT
-    body: "{\"secret_shares\": 1, \"secret_threshold\": 1}"
+    body: "{\"secret_shares\": {{ vault_secret_shares }}, \"secret_threshold\": {{ vault_secret_threshold }} }"
     body_format: json
   when: not init.json.initialized
   tags: init
@@ -42,7 +42,7 @@
 - name: Read in key
   include_vars:
     file: "~/.vault/key.json"
-    name: unseal_key
+    name: key_file
   tags: init
   when: sealed.json.sealed
 
@@ -52,7 +52,7 @@
     method: PUT
     body: "{\"key\": \"{{ item }}\"}"
     body_format: json
-  with_items: "{{ unseal_key.keys_base64 }}"
+  with_items: "{{ key_file.keys_base64 }}"
   tags: init
   register: unsealed
   when: sealed.json.sealed
