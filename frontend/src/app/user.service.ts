@@ -15,8 +15,18 @@ export class UserService {
       uid: userId,
       firstName: 'userFirstName',
       lastName: 'userLastName',
-      email: 'userEmail',
+      email: 'user@email.ch',
       password: 'userPassword'
     });
   }
+
+  saveUserDetailChanges(userInfo: User): Observable<boolean> {
+    return of(true);
+  }
+
+  changePassword(userId: string, newPassword: string): Observable<boolean> {
+    return of(true);
+  }
+
+
 }

@@ -1,6 +1,11 @@
 import {Component, Input, OnInit} from '@angular/core';
 import {User} from '../entities/user';
 import {UserService} from '../user.service';
+import {FormControl, Validators} from '@angular/forms';
+import {first} from 'rxjs/operators';
+import {MatDialog, MatDialogRef} from '@angular/material';
+import {ChangePasswordDialogComponent} from '../change-password-dialog/change-password-dialog.component';
+import {ChangePasswordDialogData} from '../entities/changePasswordDialogData';
 
 @Component({
   selector: 'app-user-detail',
@@ -13,17 +18,72 @@ export class UserDetailComponent implements OnInit {
   private uid: string;
 
   private userInfo: User;
+  private editEnabled = false;
 
+  firstNameField = new FormControl('');
+  lastNameField = new FormControl('');
 
-  constructor(private userService: UserService) { }
+  emailField = new FormControl('', [Validators.required, Validators.email]);
+
+  getErrorMessage() {
+    return this.emailField.hasError('required') ? 'You must enter a value' :
+      this.emailField.hasError('email') ? 'Not a valid email' :
+        '';
+  }
+
+  constructor(private userService: UserService, private dialog: MatDialog) {
+  }
 
   ngOnInit() {
-    this.userService.getUserInfo(this.uid).subscribe(user => this.userInfo = user);
+    this.userService.getUserInfo(this.uid)
+      .subscribe(user => {
+        this.userInfo = user;
+        this.firstNameField.setValue(this.userInfo.firstName);
+        this.lastNameField.setValue(this.userInfo.lastName);
+        this.emailField.setValue(this.userInfo.email);
+      });
+  }
+
+  enableEditUserInfo() {
+    this.editEnabled = true;
+  }
+
+  saveUserInfo() {
+    const modifiedUser = {
+      uid: this.userInfo.uid,
+      firstName: this.firstNameField.value,
+      lastName: this.lastNameField.value,
+      email: this.emailField.value,
+      password: this.userInfo.password
+    };
+    this.userService.saveUserDetailChanges(modifiedUser)
+      .subscribe(success => {
+        if (success) {
+          this.userInfo = modifiedUser;
+          this.editEnabled = false;
+        }
+      });
   }
 
   startIssueCertificateProcess() {
   }
+
   startChangePasswordProcess() {
+    const dialogRef = this.dialog.open(ChangePasswordDialogComponent, {
+      data: {
+        uid: this.userInfo.uid,
+        oldPassword: this.userInfo.password,
+        newPassword: null
+      }
+    });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result !== -1) {
+        // user wants to change password - result is of type ChangePasswordDialogData
+        const passwordData = (result as ChangePasswordDialogData);
+        this.userService.changePassword(this.uid, passwordData.newPassword)
+          .subscribe(success => console.log('Password change successfull: ' + success));
+      } // else: user cancelled change password request / nothing has to be done
+    });
   }
 
 }
