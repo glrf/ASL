@@ -1,0 +1,21 @@
+---
+- name: Install python docker module
+  become: true
+  package:
+    name: python-docker
+    state: present
+
+- name: Create and start idp container
+  docker_container:
+    name: idp
+    image: fadalax/asl-idp
+    networks:
+      - name: "{{ idp_container_network }}"
+    state: started
+    pull: yes
+    exposed_ports:
+      - "8088"
+    published_ports:
+      - "8088:8088"
+    env:
+      RUNTIME_DSN: "{{ idp_db_user }}:{{ idp_db_password }}@({{ idp_db_host }})/{{ idp_database }}"
