@@ -1,27 +1,80 @@
 ---
 - name: Read in key
   include_vars:
-    file: "~/.vault/key.json"
+    file: "{{ vault_local_dir }}/key.json"
     name: ca_key
 
 - name: Check if PKI is enabled
   uri:
-    url: http://127.0.0.1:8200/v1/sys/mounts
+    url: "{{ vault_url }}/v1/sys/mounts"
     method: GET
     status_code: 200
+    validate_certs: false
     headers:
       X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
   register: secret_engines
 
 - name: Enable PKI
   uri:
-    url: http://127.0.0.1:8200/v1/sys/mounts/pki
+    url: "{{ vault_url }}/v1/sys/mounts/pki"
     method: POST
     body: "{\"type\":\"pki\"}"
     body_format: json
     status_code: 204
+    validate_certs: false
     headers:
       X-Vault-Token: "{{ ca_key.root_token }}"
-  register: aaa
+  delegate_to: 127.0.0.1
   when: not secret_engines.json["pki/"] is defined
 
+- name: Tune PKI
+  uri:
+    url: "{{ vault_url }}/v1/sys/mounts/pki/tune"
+    method: POST
+    body: "{\"max_lease_ttl\":\"87600h\"}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+
+- name: Generate Root Cert
+  uri:
+    url: "{{ vault_url }}/v1/pki/root/generate/internal"
+    method: POST
+    body: "{\"common_name\":\"fadalax.io\", \"ttl\":\"87600h\"}"
+    body_format: json
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  when: not secret_engines.json["pki/"] is defined
+  delegate_to: 127.0.0.1
+
+- name: Configure CA and CRL
+  uri:
+    url: "{{ vault_url }}/v1/pki/config/urls"
+    method: POST
+    body: "{\"issuing_certificates\": \"http://127.0.0.1:8200/v1/pki/ca\", \"crl_distribution_points\": \"http://127.0.0.1:8200/v1/pki/crl\"}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  when: not secret_engines.json["pki/"] is defined
+  delegate_to: 127.0.0.1
+
+- name: Create Role for system internal certs
+  uri:
+    url: "{{ vault_url }}/v1/pki/roles/sys-internal"
+    method: POST
+    body: "{\"allowed_domains\": \"{{ vault_ca_base_domain }}\", \"allow_subdomains\": true, \"max_ttl\": \"7200h\"}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  when: not secret_engines.json["pki/"] is defined
+  delegate_to: 127.0.0.1

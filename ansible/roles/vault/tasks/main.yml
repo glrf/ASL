@@ -2,16 +2,55 @@
 - name: Install
   include: install.yml
 
+# If we need to bootstrap ssl. We first need to check if we have configured ssl before
+- name: Check if bootstrapping
+  block:
+    - name: service is running
+      become: true
+      service: name=vault state=started
+    - name: service is accessible via https
+      uri:
+        url: "{{ vault_url }}/v1/sys/init"
+        method: GET
+        validate_certs: false
+      delegate_to: 127.0.0.1
+    - set_fact:
+        vault_bootstrapping: false
+  rescue:
+    - set_fact:
+        vault_bootstrapping: true
+        vault_original_url: "{{ vault_url }}"
+        vault_url: "{{ vault_ca_bootstrap_url }}"
+        vault_ssl: false
+  when: vault_ca_bootstrap_ssl
+
 - name: Configure
   include: configure.yml
 
-- name: Start vault
+- name: Check that vault is running
   become: true
-  service: name=vault state=restarted
+  service: name=vault state=started
 
 - name: Init
   include: init.yml
 
+- name: Restart if necessary to set config.
+  meta: flush_handlers
+
 - name: CA
   include: ca.yml
   when: vault_ca 
+
+- name: Self signed SSL Cert
+  include: self_ssl.yml
+  when: vault_ca and vault_ca_bootstrap_ssl and vault_bootstrapping
+
+- set_fact:
+    vault_bootstrapping: false
+    vault_original_url: "{{ vault_url }}"
+    vault_url: "{{ vault_original_url }}"
+    vault_ssl: true
+  when: vault_ca_bootstrap_ssl and vault_bootstrapping
+
+
+

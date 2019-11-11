@@ -2,4 +2,13 @@
 - hosts: all
   roles:
     - role: vault
+  vars:
+    vault_ssl: true
+    vault_url: "https://vault.fadalax.io:8201"
+    vault_ca: true
+    vault_ca_bootstrap_ssl: true
+    vault_ca_base_domain: "fadalax.io"
+    vault_ca_domain: "vault.fadalax.io"
+    vault_ca_bootstrap_url: "http://vault.fadalax.io:8201"
+
   
