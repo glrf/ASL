@@ -54,9 +54,8 @@ export class UserDetailComponent implements OnInit {
       firstName: this.firstNameField.value,
       lastName: this.lastNameField.value,
       email: this.emailField.value,
-      password: this.userInfo.password
     };
-    this.userService.saveUserDetailChanges(modifiedUser)
+    this.userService.saveUserInfo(modifiedUser)
       .subscribe(success => {
         if (success) {
           this.userInfo = modifiedUser;
@@ -71,8 +70,6 @@ export class UserDetailComponent implements OnInit {
   startChangePasswordProcess() {
     const dialogRef = this.dialog.open(ChangePasswordDialogComponent, {
       data: {
-        uid: this.userInfo.uid,
-        oldPassword: this.userInfo.password,
         newPassword: null
       }
     });
@@ -80,7 +77,7 @@ export class UserDetailComponent implements OnInit {
       if (result !== -1) {
         // user wants to change password - result is of type ChangePasswordDialogData
         const passwordData = (result as ChangePasswordDialogData);
-        this.userService.changePassword(this.uid, passwordData.newPassword)
+        this.userService.changeUserPassword(this.uid, passwordData.newPassword)
           .subscribe(success => console.log('Password change successfull: ' + success));
       } // else: user cancelled change password request / nothing has to be done
     });
