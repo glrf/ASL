@@ -38,6 +38,12 @@ vault_ca_bootstrap_ssl: false
 vault_ca_bootstrap_url: "http://127.0.0.1:8200" #Non https url that resolves during setup
 
 
+vault_oidc: false
+vault_oidc_url: "localhost:9000"
+vault_oidc_client: "vault"
+oidc_client_secret: "test12345678"
+vault_oidc_rediect_uri: "http://localhost:8200/ui/vault/auth/oidc/oidc/callback"
+
 
 
 

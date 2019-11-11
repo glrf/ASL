@@ -53,4 +53,11 @@
   when: vault_ca_bootstrap_ssl and vault_bootstrapping
 
 
+- name: Restart if necessary to set config.
+  meta: flush_handlers
+
+- name: Enable OIDC
+  include: oidc.yml
+  when: vault_oidc 
+
 

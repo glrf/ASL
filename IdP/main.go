@@ -111,7 +111,7 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 	//TODO: check, whether the user gave consent and user should give consent if not...
 	//TODO: check whether skip is true... only show UI if skip false.
 
-	requestBody := AcceptConsentRequest{GrantScope: []string{"scope"}, GrantAccessTokenAudience: []string{"hi"}, Remember: false, RememberFor: 300}
+	requestBody := AcceptConsentRequest{GrantScope: []string{"offline", "openid"}, GrantAccessTokenAudience: []string{"offline"}, Remember: false, RememberFor: 300}
 	conRes, err := s.client.AcceptConsent(keys[0], requestBody)
 	http.Redirect(w, r, conRes.RedirectTo, 302)
 }

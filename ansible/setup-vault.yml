@@ -10,5 +10,14 @@
     vault_ca_base_domain: "fadalax.io"
     vault_ca_domain: "vault.fadalax.io"
     vault_ca_bootstrap_url: "http://vault.fadalax.io:8201"
+    vault_oidc: true
+    vault_oidc_url: "https://hydra.fadalax.io:9000/"
+    vault_oidc_client: "vault"
+    vault_oidc_secret: "test12345678"
+    vault_oidc_rediect_uri: "https://vault.fadalax.io:8201/ui/vault/auth/oidc/oidc/callback"
+
+
+
+
 
   

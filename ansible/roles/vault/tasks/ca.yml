@@ -52,6 +52,19 @@
       X-Vault-Token: "{{ ca_key.root_token }}"
   when: not secret_engines.json["pki/"] is defined
   delegate_to: 127.0.0.1
+  register: ca_cert
+
+- name: Move root ca to trusted ca 
+  copy: 
+    content: "{{ ca_cert.json.data.certificate }}" 
+    dest: "/usr/local/share/ca-certificates/vault_ca.crt"
+  become: true
+  when: not secret_engines.json["pki/"] is defined
+
+- name: update ca-certificates
+  become: true
+  command: "update-ca-certificates"
+  when: not secret_engines.json["pki/"] is defined
 
 - name: Configure CA and CRL
   uri:

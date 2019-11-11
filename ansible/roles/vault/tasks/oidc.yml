@@ -1,0 +1,56 @@
+---
+- name: Read in key
+  include_vars:
+    file: "{{ vault_local_dir }}/key.json"
+    name: ca_key
+
+- name: Check if oicd is enabled
+  uri:
+    url: "{{ vault_url }}/v1/sys/auth"
+    method: GET
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  register: auth_engines
+
+- name: Enable OIDC
+  uri:
+    url: "{{ vault_url }}/v1/sys/auth/oidc"
+    method: POST
+    body: "{\"type\":\"oidc\"}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  when: not auth_engines.json["oidc/"] is defined
+
+- name: Configure OIDC
+  uri:
+    url: "{{ vault_url }}/v1/auth/oidc/config"
+    method: POST
+    body: "{\"oidc_discovery_url\":\"{{ vault_oidc_url }}\", \"oidc_client_id\": \"{{ vault_oidc_client }}\", \
+            \"oidc_client_secret\": \"{{ vault_oidc_secret }}\", \"default_role\": \"reader\" } "
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+
+- name: Create Reader Role
+  uri:
+    url: "{{ vault_url }}/v1/auth/oidc/role/reader"
+    method: POST
+    body: "{\"bound_audiences\":\"{{ vault_oidc_client }}\", \
+           \"allowed_redirect_uris\":[\"{{ vault_oidc_rediect_uri }}\"], \
+           \"user_claim\": \"sub\", \"policies\": [\"default\"]}"
+    body_format: json
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
