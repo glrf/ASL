@@ -1,6 +1,39 @@
-<h2>Certificates</h2>
-<ul class="certificates">
-  <li *ngFor="let certificate of certificates">
-    <span class="badge">{{certificate.serial_number}}</span>
-  </li>
-</ul>
+<div class="certificateView">
+
+  <h1>Your Certificates</h1>
+
+  <div *ngIf="certificates.length === 0">
+    <p> Currently no valid certificates to display. </p>
+  </div>
+
+  <div>
+
+    <div *ngIf="certificates.length !== 0">
+      <p>(Click on serial number for more information)</p>
+      <ul class="certificates">
+        <li *ngFor="let certificate of certificates">
+          <span class="badge" (click)="displayCertificateDetails(certificate)">{{certificate.serialNumber}}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <button (click)="issueCertificate()"> Issue Certificate </button>
+      <button *ngIf="certificates.length !== 0" (click)="revokeCertificates()"> Revoke All Current Certificates </button>
+    </div>
+  </div>
+
+  <div *ngIf="selectedCertificate !== null">
+    <app-certificate-detail [certificate]="selectedCertificate"></app-certificate-detail>
+  </div>
+
+</div>
+
+<div class="certificateAdminView">
+  <!-- TODO: should only be seen, if user is a CA Admin -->
+  <app-certificate-admin-view
+    [numIssuedCerts]="numIssuedCertificates"
+    [numRevokedCerts]="numRevokedCertificates"
+    [lastCertSerialNumber]="lastCertificateSerialNumber">
+  </app-certificate-admin-view>
+</div>

@@ -1,0 +1,8 @@
+<div *ngIf="certificate !== null">
+  <h3> Certificate: {{certificate.serialNumber}}</h3>
+
+  <p> All infos about the certificate...</p>
+
+  <button (click)="downloadCertificate(certificate)"> Download </button>
+</div>
+

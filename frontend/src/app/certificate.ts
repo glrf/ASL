@@ -1,8 +1,9 @@
 // TODO(david) flesh this out
 export class Certificate {
-  serial_number: number;
+  serialNumber: string;
+  uid: string;
 
-  constructor(sn: number) {
-    this.serial_number = sn;
+  constructor(sn: string) {
+    this.serialNumber = sn;
   }
 }
