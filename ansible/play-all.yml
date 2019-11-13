@@ -1,0 +1,41 @@
+---
+- hosts: vault
+  roles:
+    - role: vault
+  vars:
+    vault_oidc: false
+
+- hosts: hydra
+  roles:
+    - role: vault_issue_cert
+    - role: hydra
+  vars_files:
+    - ./vault
+  vars:
+    hydra_self_issuer: "https://hydra.fadalax.tech:9000"
+    hydra_idp_url: "http://idp.fadalax.tech:8088"
+    hydra_vault_url: "https://vault.fadalax.tech:8200"
+
+- hosts: idp
+  roles:
+    - role: docker
+    - role: mysql
+    - role: idp
+  vars_files:
+    - ./vault
+  vars:
+    docker_install_compose: false
+    idp_hydra_admin: "https://hydra.fadalax.tech:9001"
+
+- hosts: vault
+  roles:
+    - role: vault
+  vars:
+    vault_oidc: true
+
+
+
+
+
+
+  
