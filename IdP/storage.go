@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha1"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
@@ -60,13 +61,49 @@ func (s *storage) GetUser(ctx context.Context, userID string) (User, error) {
 // ChangePassword allows a user to change their password.
 func (s *storage) ChangePassword(ctx context.Context, userID string, password string) error {
 	// TODO(bimmlerd)
-	return fmt.Errorf("not implemented")
+	//hash password
+	h := sha1.New()
+	pwHash := h.Sum([]byte(password))
+
+	//does the user exist?
+	u := dbUser{}
+	row := s.db.QueryRowContext(ctx, `SELECT uid, firstname, lastname, email FROM users WHERE uid=?`, userID)
+	err := row.Scan(&u.uid, &u.firstname, &u.lastname, &u.email)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.WithError(err).Error("Failed to query DB for user.")
+		}
+		return err
+	}
+	//change password.
+
+	row = s.db.QueryRowContext(ctx, `UPDATE users SET pwn = ? WHERE uid=?`, pwHash, userID)
+
+	err = row.Scan()
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.WithError(err).Error("Failed to change password.")
+		}
+		return err
+	}
+	return nil
 }
 
 // Login returns true if the hashed password matches our database record.
 func (s *storage) Login(ctx context.Context, userID string, password string) bool {
-	// TODO(bimmlerd)
-	return false
+	h := sha1.New()
+	pwHash := h.Sum([]byte(password))
+
+	row := s.db.QueryRowContext(ctx, `SELECT uid FROM users WHERE uid=? AND pwn=?`, userID, pwHash)
+
+	err := row.Scan()
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.WithError(err).Error("Failed to query DB for user.")
+		}
+		return false
+	}
+	return true
 }
 
 func userFromDBUser(u dbUser) User {
