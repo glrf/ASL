@@ -64,7 +64,7 @@
     --id vault --secret test12345678 \
     --grant-types authorization_code,refresh_token,client_credentials,implicit \
     --response-types token,code,id_token \
-    --scope openid,offline \
+    --scope testp,openid,offline \
     --callbacks https://vault.fadalax.io:8201/ui/vault/auth/oidc/oidc/callback"
     networks:
       - name:  "{{ hydra_network }}"

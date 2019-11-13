@@ -73,7 +73,7 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Accept login request
 	if authenticated {
-		acceptBody := AcceptLoginRequest{Subject: "sub", Remember: false, RememberFor: 300}
+		acceptBody := AcceptLoginRequest{Subject: "a", Remember: false, RememberFor: 300}
 		accRes, err := s.client.AcceptLogin(keys[0], acceptBody)
 		if err != nil {
 			log.Error("Error accepting login", "error", err)
@@ -83,6 +83,7 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 
 		// redirect
 		http.Redirect(w, r, accRes.RedirectTo, 302)
+		return
 	}
 	s.httpUnauthorized(w)
 }
@@ -99,21 +100,36 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 	challenge := keys[0]
 
 	//fetch information about the request
-	_, err := s.client.GetConsentInfo(challenge)
+	cinfo, err := s.client.GetConsentInfo(challenge)
 	if err != nil {
 		log.Error("Error getting consent info", "error", err)
 		s.httpInternalError(w, err)
 		return
 	}
+	consent := false
 
-	// TODO(Fischi): We don't actually use the information we get. We should
+	if r.Method == http.MethodGet && !cinfo.Skip {
+		// TODO(Fischi): Show Consent screen
+		consent = true
+	}
+	if r.Method == http.MethodPost {
+		//TODO: check, whether the user gave consent and user should give consent if not...
+		consent = true
+	}
 
-	//TODO: check, whether the user gave consent and user should give consent if not...
-	//TODO: check whether skip is true... only show UI if skip false.
+	if consent {
+		requestBody := AcceptConsentRequest{GrantScope: cinfo.RequestedScope, GrantAccessTokenAudience: cinfo.RequestedAudience, Remember: false, RememberFor: 300}
+		conRes, err := s.client.AcceptConsent(keys[0], requestBody)
+		if err != nil {
+			log.Error("Error giving consent", "error", err)
+			s.httpInternalError(w, err)
+			return
+		}
+		http.Redirect(w, r, conRes.RedirectTo, 302)
+		return
+	}
+	s.httpUnauthorized(w)
 
-	requestBody := AcceptConsentRequest{GrantScope: []string{"offline", "openid"}, GrantAccessTokenAudience: []string{"offline"}, Remember: false, RememberFor: 300}
-	conRes, err := s.client.AcceptConsent(keys[0], requestBody)
-	http.Redirect(w, r, conRes.RedirectTo, 302)
 }
 
 func (s Server) httpInternalError(w http.ResponseWriter, e error) {

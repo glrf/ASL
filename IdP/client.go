@@ -40,33 +40,36 @@ type AcceptLoginResponse struct {
 }
 
 func (c HydraClient) AcceptLogin(challenge string, req AcceptLoginRequest) (AcceptLoginResponse, error) {
-	requestBody := AcceptLoginRequest{Subject: "sub", Remember: false, RememberFor: 300}
-	buf, err := json.Marshal(requestBody)
+	buf, err := json.Marshal(req)
 	if err != nil {
-		return AcceptLoginResponse{}, nil
+		return AcceptLoginResponse{}, err
 	}
 	url := fmt.Sprintf("%s/oauth2/auth/requests/login/accept?login_challenge=%s", c.adminUrl, challenge)
 	request, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(buf))
 	if err != nil {
-		return AcceptLoginResponse{}, nil
+		return AcceptLoginResponse{}, err
 	}
 	res, err := c.client.Do(request)
 	if err != nil {
-		return AcceptLoginResponse{}, nil
+		return AcceptLoginResponse{}, err
 	}
 	buf, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		return AcceptLoginResponse{}, nil
+		return AcceptLoginResponse{}, err
 	}
 	accRes := AcceptLoginResponse{}
 	err = json.Unmarshal(buf, &accRes)
 	if err != nil {
-		return AcceptLoginResponse{}, nil
+		return AcceptLoginResponse{}, err
 	}
 	return accRes, nil
 }
 
 type ConsentInfo struct {
+	Skip              bool     `json:"skip"`
+	Subject           string   `json:"subject"`
+	RequestedScope    []string `json:"requested_scope"`
+	RequestedAudience []string `json:"requested_access_token_audience"`
 }
 
 func (c HydraClient) GetConsentInfo(challenge string) (ConsentInfo, error) {
@@ -75,11 +78,20 @@ func (c HydraClient) GetConsentInfo(challenge string) (ConsentInfo, error) {
 	if err != nil {
 		return ConsentInfo{}, err
 	}
-	_, err = c.client.Do(request)
+	res, err := c.client.Do(request)
 	if err != nil {
 		return ConsentInfo{}, err
 	}
-	return ConsentInfo{}, nil
+	buf, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return ConsentInfo{}, err
+	}
+	conInfo := ConsentInfo{}
+	err = json.Unmarshal(buf, &conInfo)
+	if err != nil {
+		return ConsentInfo{}, err
+	}
+	return conInfo, nil
 }
 
 type AcceptConsentRequest struct {
