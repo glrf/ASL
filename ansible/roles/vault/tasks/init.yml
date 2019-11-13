@@ -1,24 +1,29 @@
 ---
 - name: Check if initialized
   uri:
-    url: http://127.0.0.1:8200/v1/sys/init
+    url: "{{ vault_url }}/v1/sys/init"
     method: GET
+    validate_certs: false
   tags: init
+  delegate_to: 127.0.0.1
   register: init
+  retries: 10
 
 - name: Init vault if not initialized
   uri:
-    url: http://127.0.0.1:8200/v1/sys/init
+    url: "{{ vault_url }}/v1/sys/init"
     method: PUT
-    body: "{\"secret_shares\": 1, \"secret_threshold\": 1}"
+    body: "{\"secret_shares\": {{ vault_secret_shares }}, \"secret_threshold\": {{ vault_secret_threshold }} }"
     body_format: json
+    validate_certs: false
   when: not init.json.initialized
   tags: init
+  delegate_to: 127.0.0.1
   register: key
 
 - name: Ensures key dir exists
   file: 
-    path: "~/.vault/" 
+    path: "{{ vault_local_dir }}" 
     state: directory
   delegate_to: 127.0.0.1
   tags: init
@@ -27,34 +32,38 @@
 - name: Write key to file
   copy:
     content: "{{ key.json }}"
-    dest: "~/.vault/key.json"
+    dest: "{{ vault_local_dir }}/key.json"
   delegate_to: 127.0.0.1
   tags: init
   when: not init.json.initialized
 
 - name: Check if sealed
   uri:
-    url: http://127.0.0.1:8200/v1/sys/seal-status
+    url: "{{ vault_url }}/v1/sys/seal-status"
     method: GET
+    validate_certs: false
   tags: init
+  delegate_to: 127.0.0.1
   register: sealed
 
 - name: Read in key
   include_vars:
-    file: "~/.vault/key.json"
-    name: unseal_key
+    file: "{{ vault_local_dir }}/key.json"
+    name: key_file
   tags: init
   when: sealed.json.sealed
 
 - name: Unseal
   uri:
-    url: http://127.0.0.1:8200/v1/sys/unseal
+    url: "{{ vault_url }}/v1/sys/unseal"
     method: PUT
     body: "{\"key\": \"{{ item }}\"}"
     body_format: json
-  with_items: "{{ unseal_key.keys_base64 }}"
+    validate_certs: false
+  with_items: "{{ key_file.keys_base64 }}"
   tags: init
   register: unsealed
+  delegate_to: 127.0.0.1
   when: sealed.json.sealed
 
 

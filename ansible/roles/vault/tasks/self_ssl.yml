@@ -1,0 +1,46 @@
+---
+- name: Read in key
+  include_vars:
+    file: "{{ vault_local_dir }}/key.json"
+    name: ca_key
+
+- name: Issue cert for vault itself
+  uri:
+    url: "{{ vault_url }}/v1/pki/issue/sys-internal"
+    method: POST
+    body: "{\"common_name\": \"{{ vault_ca_domain }}\", \"ttl\": 315360000}"
+    body_format: json
+    status_code: 200
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+    validate_certs: false
+  register: ssl_cert
+  delegate_to: 127.0.0.1
+
+- name: Ensures cert dir exists
+  file: 
+    path: "{{ vault_ssl_cert_folder }}"
+    state: directory
+  become: true
+
+- name: Write key to file
+  copy:
+    content: "{{ ssl_cert.json.data.private_key }}"
+    dest: "{{ vault_ssl_key }}"
+  become: true
+
+- name: Write cert to file
+  copy:
+    content: "{{ ssl_cert.json.data.certificate }}\n{{ ssl_cert.json.data.issuing_ca }}"
+    dest: "{{ vault_ssl_cert }}"
+  become: true
+
+- name: reconfigure
+  include_tasks: configure.yml
+  vars:
+    vault_ssl: true
+
+
+
+
+

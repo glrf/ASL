@@ -10,11 +10,13 @@
 
 - name: Unseal
   uri:
-    url: http://127.0.0.1:8200/v1/sys/unseal
+    url: "{{ vault_url }}/v1/sys/unseal"
     method: PUT
     body: "{\"key\": \"{{ item }}\"}"
     body_format: json
+    validate_certs: false
   with_items: "{{ restart_key.keys_base64 }}"
   tags: init
+  delegate_to: 127.0.0.1
   register: unsealed
 

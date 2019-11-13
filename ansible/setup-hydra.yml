@@ -1,6 +1,14 @@
 ---
 - hosts: all
   roles:
+    - role: vault_issue_cert
     - role: hydra
   vars_files:
     - ./vault
+  vars:
+    vault_url: "https://vault.fadalax.io:8201"
+    vault_issue_domain: "hydra.fadalax.io"
+    vault_issue_ssl_cert_folder: /home/vagrant
+    vault_issue_ssl_cert: /home/vagrant/cert.pem
+    vault_issue_ssl_key: /home/vagrant/cert.key
+

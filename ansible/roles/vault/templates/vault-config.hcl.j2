@@ -1,7 +1,12 @@
 
 listener "tcp" {
   address = "0.0.0.0:8200",
-  tls_disable = 1,
+{% if vault_ssl %}
+  tls_cert_file = "{{ vault_ssl_cert }}"
+  tls_key_file  = "{{ vault_ssl_key }}"
+{% else %}
+  tls_disable = 1
+{% endif %}
 }
  
 ui = true

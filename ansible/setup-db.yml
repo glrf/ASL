@@ -3,6 +3,7 @@
   roles:
     - role: docker
     - role: mysql
+    - role: idp
   vars_files:
     - ./vault
   vars:
