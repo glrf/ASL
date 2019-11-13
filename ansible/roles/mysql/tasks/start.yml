@@ -40,7 +40,10 @@
 - name: Create and Start MySQL Container
   docker_container:
     name: user_db
+    user: 1000:1000
     image: mysql
+    networks:
+      - name: "{{ mysql_container_network }}"
     state: started
     volumes:
       - "{{ mysql_initial_data_dir }}:/docker-entrypoint-initdb.d"
@@ -48,3 +51,5 @@
     env:
       MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
       MYSQL_DATABASE: "{{ mysql_database }}"
+      MYSQL_USER: "{{ mysql_user }}"
+      MYSQL_PASSWORD: "{{ mysql_user_password }}"

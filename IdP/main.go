@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
+	"database/sql"
+	"encoding/json"
 	"flag"
+	"fmt"
+	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"html"
 	"net/http"
+	"time"
 )
 
 type adminClient interface {
@@ -16,29 +22,53 @@ type adminClient interface {
 }
 
 type Server struct {
-	mux    *http.ServeMux
+	router *mux.Router
 	client adminClient
+	db     Storage
+}
+
+type Storage interface {
+	GetUser(ctx context.Context, userID string) (User, error)
+	ChangePassword(ctx context.Context, userID string, password string) error
+	Login(ctx context.Context, userID string, password string) bool
 }
 
 var adminURl = flag.String("admin-url", "https://localhost:9001", "url of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
+var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
 
 func main() {
+	log.SetLevel(log.TraceLevel) // log all the things
 	flag.Parse()
 	// Setting up client to communicate with hydra
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := HydraClient{client: &http.Client{Transport: tr}, adminUrl: *adminURl}
+	if *dsn == "" {
+		log.Error("Empty DSN passed.")
+	}
+	db, err := NewStorage(*dsn)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create storage component.")
+	}
 
 	// Prepare HTTP server
-	mux := http.NewServeMux()
-	ser := Server{client: &client, mux: mux}
-	mux.HandleFunc("/login", ser.Login)
-	mux.HandleFunc("/consent", ser.Consent)
+	r := mux.NewRouter()
+	ser := Server{client: &client, router: r, db: db}
+	r.HandleFunc("/login", ser.Login)
+	r.HandleFunc("/consent", ser.Consent)
+	r.HandleFunc("/user/{id}", ser.GetUser)
 
+	// Kind of a smoke test.
+	u, err := ser.db.GetUser(context.Background(), "a3")
+	if err != nil {
+		log.WithError(err).Fatalf("Failed to execute known good query")
+	} else {
+		log.WithField("user", u).Info("Found user.")
+	}
 	// Run
-	log.Fatal(http.ListenAndServe(*listen, mux))
+	log.Fatal(http.ListenAndServe(*listen, r))
 }
 
 func (s Server) Login(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +99,7 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		// TODO(Fischi): Check authentication
+		// use db.Login
 	}
 
 	// Accept login request
@@ -82,7 +113,7 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// redirect
-		http.Redirect(w, r, accRes.RedirectTo, 302)
+		http.Redirect(w, r, accRes.RedirectTo, http.StatusFound)
 		return
 	}
 	s.httpUnauthorized(w)
@@ -125,24 +156,57 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 			s.httpInternalError(w, err)
 			return
 		}
-		http.Redirect(w, r, conRes.RedirectTo, 302)
+		http.Redirect(w, r, conRes.RedirectTo, http.StatusFound)
 		return
 	}
 	s.httpUnauthorized(w)
+}
 
+func (s Server) GetUser(w http.ResponseWriter, r *http.Request) {
+	log.Debug("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	vars := mux.Vars(r)
+	id, ok := vars["id"]
+	if !ok {
+		log.Error("GetUser request without ID.")
+		s.httpBadRequest(w, "missing user id")
+		return
+	}
+	u, err := s.db.GetUser(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.WithField("user-id", id).Warn("User not found.")
+			s.httpNotFound(w)
+			return
+		}
+		log.WithError(err).WithField("user-id", id).Error("Failed to GetUser.")
+		s.httpInternalError(w, fmt.Errorf("failed to get user"))
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	err = json.NewEncoder(w).Encode(u)
+	if err != nil {
+		s.httpInternalError(w, err)
+	}
 }
 
 func (s Server) httpInternalError(w http.ResponseWriter, e error) {
 	if e != nil {
-		log.Printf("Error: %v\n", e)
+		log.Errorf("Error: %v\n", e)
 	}
-	http.Error(w, http.StatusText(500), 500)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+}
+
+func (s Server) httpNotFound(w http.ResponseWriter) {
+	http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 }
 
 func (s Server) httpUnauthorized(w http.ResponseWriter) {
-	http.Error(w, http.StatusText(403), 403)
+	http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 }
 
 func (s Server) httpBadRequest(w http.ResponseWriter, error string) {
-	http.Error(w, error, 400)
+	http.Error(w, error, http.StatusBadRequest)
 }
