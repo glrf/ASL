@@ -15,6 +15,10 @@ import (
 	"time"
 )
 
+const (
+	authorization = "authorization"
+)
+
 type adminClient interface {
 	GetLoginInfo(challenge string) (LoginInfo, error)
 	AcceptLogin(challenge string, req AcceptLoginRequest) (AcceptLoginResponse, error)
@@ -26,6 +30,7 @@ type Server struct {
 	router          *mux.Router
 	client          adminClient
 	db              Storage
+	auth            TokenValidator
 	templateLogin   *template.Template
 	templateConsent *template.Template
 }
@@ -36,9 +41,15 @@ type Storage interface {
 	Login(ctx context.Context, userID string, password string) bool
 }
 
+type TokenValidator interface {
+	// Validate returns the uid if the token in authHeader is valid, an error otherwise.
+	Validate(authHeader string) (string, error)
+}
+
 var adminURl = flag.String("admin-url", "https://localhost:9001", "url of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
+var issuer = flag.String("issuer", "https://hydra.fadalax.tech:9000/", "OpenID Connect issuer")
 
 func main() {
 	log.SetLevel(log.TraceLevel) // log all the things
@@ -55,10 +66,13 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create storage component.")
 	}
-
+	auth, err := NewValidator(*issuer, client)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create token validation component.")
+	}
 	// Prepare HTTP server
 	r := mux.NewRouter()
-	ser := Server{client: &client, router: r, db: db}
+	ser := Server{client: &client, router: r, db: db, auth: auth}
 
 	// Prepare template
 	ser.templateLogin, err = template.ParseFiles("./template/login.html")
@@ -73,6 +87,7 @@ func main() {
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
 	r.HandleFunc("/user/{id}", ser.GetUser)
+	r.HandleFunc("/user", ser.GetUser)
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -189,13 +204,31 @@ func (s Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	vars := mux.Vars(r)
-	id, ok := vars["id"]
-	if !ok {
-		log.Error("GetUser request without ID.")
-		s.httpBadRequest(w, "missing user id")
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
 		return
 	}
+	
+	id, err := s.auth.Validate(h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	if id == "" {
+		vars := mux.Vars(r)
+		vid, ok := vars["id"]
+		if !ok {
+			log.Error("GetUser request without ID.")
+			s.httpBadRequest(w, "missing user id")
+			return
+		}
+		id = vid
+	}
+
 	u, err := s.db.GetUser(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
