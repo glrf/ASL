@@ -72,7 +72,7 @@ func main() {
 }
 
 func (s Server) Login(w http.ResponseWriter, r *http.Request) {
-	log.Debug("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	//keys[0] contains the challenge
 	keys, ok := r.URL.Query()["login_challenge"]
 	if !ok {
@@ -120,7 +120,7 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
-	log.Debug("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	//keys[0] contains the challenge
 	keys, ok := r.URL.Query()["consent_challenge"]
 	if !ok {
@@ -163,7 +163,7 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s Server) GetUser(w http.ResponseWriter, r *http.Request) {
-	log.Debug("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	vars := mux.Vars(r)
