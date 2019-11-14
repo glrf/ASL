@@ -15,9 +15,10 @@ import (
 	"time"
 )
 
-var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "url of the hydra admin api")
+var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
+var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200","URL of the Vault instance")
 
 type server struct {
 	router          *mux.Router
@@ -61,7 +62,8 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create storage component.")
 	}
-	vc, err := NewVaultClient()
+	// Reads token from VAULT_TOKEN automatically.
+	vc, err := NewVaultClient(*vaultURL)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
