@@ -20,3 +20,5 @@
     env:
       RUNTIME_DSN: "{{ idp_db_user }}:{{ idp_db_password }}@({{ idp_db_host }})/{{ idp_database }}"
       RUNTIME_HYDRA_ADMIN: "{{ idp_hydra_admin }}"
+      VAULT_TOKEN: "{{ vault_service_token }}"
+      VAULT_URL: "{{ vault_url }}"

@@ -1,0 +1,5 @@
+---
+vault_url: "https://vault.fadalax.tech:8200"
+vault_service_account: "idp"
+vault_service_policy: "path \"sys/mounts/*\" {capabilities = [ \"create\", \"read\", \"update\"]}"
+

@@ -44,7 +44,7 @@
   uri:
     url: "{{ vault_url }}/v1/pki/root/generate/internal"
     method: POST
-    body: "{\"common_name\":\"fadalax.io\", \"ttl\":\"87600h\"}"
+    body: "{\"common_name\":\"{{ vault_ca_base_domain }}\", \"ttl\":\"87600h\"}"
     body_format: json
     status_code: 200
     validate_certs: false
@@ -91,3 +91,6 @@
       X-Vault-Token: "{{ ca_key.root_token }}"
   when: not secret_engines.json["pki/"] is defined
   delegate_to: 127.0.0.1
+
+
+

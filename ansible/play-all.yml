@@ -19,6 +19,7 @@
 - hosts: idp
   roles:
     - role: docker
+    - role: vault_service_token
     - role: mysql
     - role: idp
   vars_files:

@@ -1,0 +1,5 @@
+---
+vault_local_dir: "~/.vault/"
+vautl_url: "localhost:8200"
+
+
