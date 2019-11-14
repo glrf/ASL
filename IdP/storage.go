@@ -90,6 +90,17 @@ func (s *storage) ChangePassword(ctx context.Context, userID string, password st
 	return nil
 }
 
+func (s *storage) EdditUser(ctx context.Context, user dbUser) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET firstname = ?, lastname = ?, email = ? WHERE uid=?`, user.firstname, user.lastname, user.email, user.uid)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.WithError(err).Error("Failed to edit user")
+		}
+		return err
+	}
+	return nil
+}
+
 // Login returns true if the hashed password matches our database record.
 func (s *storage) Login(ctx context.Context, userID string, password string) bool {
 	//hash password
