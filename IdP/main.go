@@ -67,7 +67,16 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
-	
+	// Smoke test for Vault
+	exists, err := vc.PKIRoleExists("a3")
+	if err != nil || !exists {
+		log.WithError(err).Fatal("Failed to fetch known good PKI role.")
+	}
+	exists, err = vc.PKIRoleExists("a4")
+	if err != nil || exists {
+		log.WithError(err).Fatal("Smoke test failed.")
+	}
+
 	// Prepare HTTP server
 	r := mux.NewRouter()
 	ser := server{hydra: &hydra, router: r, db: db, vault: vc}
