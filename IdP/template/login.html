@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+
+    <meta name="description" content="Fadalax SSO">
+    <meta name="author" content="Fadalax">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- Bootstrap CSS
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css"> -->
+</head>
+
+<body>
+
+<div class="container">
+    <div class="page-header">
+        <h1>fadalax SSO<h1>
+    </div>
+    <form method="post">
+        <div class="form-group">
+            <label for="nethz">Username</label>
+            <div><input type="text" class="form-control" id="username" name="username" maxlength="48" placeholder="username" /></div>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <div><input type="password" class="form-control" id="password" name="password" maxlength="48" placeholder="Password" /></div>
+        </div>
+<!-- TODO    {{ .csrfField }}-->
+        <input type="submit" class="btn btn-primary" value="Login" class="button" />
+    </form>
+
+
+</div>
+
+</body>
+
+</html>
