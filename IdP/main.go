@@ -95,17 +95,18 @@ func main() {
 }
 
 func (s server) Login(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	l := log.WithContext(r.Context())
+	l.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	//keys[0] contains the challenge
 	keys, ok := r.URL.Query()["login_challenge"]
 	if !ok {
-		log.Info("No login challenge provided")
+		l.Info("No login challenge provided")
 		s.httpBadRequest(w, "no login challenge provided")
 		return
 	}
 	info, err := s.hydra.GetLoginInfo(keys[0])
 	if err != nil {
-		log.Error("Error getting login info", "error", err)
+		l.Error("Error getting login info", "error", err)
 		s.httpInternalError(w, err)
 		return
 	}
@@ -131,19 +132,36 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 		}
 		username = r.FormValue("username")
 		password := r.FormValue("password")
+		l = l.WithField("username", username)
 		authenticated = s.db.Login(r.Context(), username, password)
-		log.WithField("username", username).Info("Login Attempt.")
+		l.Info("Login Attempt.")
 	}
 
 	// Accept login request
 	if authenticated {
-		log.WithField("username", username).Info("Authenticated")
+		l.Info("Authenticated")
 		acceptBody := AcceptLoginRequest{Subject: username, Remember: false, RememberFor: 300}
 		accRes, err := s.hydra.AcceptLogin(keys[0], acceptBody)
 		if err != nil {
-			log.Error("Error accepting login", "error", err)
+			l.WithError(err).Error("Error accepting login.")
 			s.httpInternalError(w, err)
 			return
+		}
+
+		exists, err := s.vault.PKIRoleExists(username)
+		if err != nil {
+			l.WithError(err).Error("Failed to check whether a PKI role exists.")
+			s.httpInternalError(w, err) // TODO(bimmlerd) do we leak too much information here?
+			return
+		}
+		
+		if !exists {
+			err := s.vault.CreatePKIUser(username)
+			if err != nil {
+				l.WithError(err).Error("Failed to create PKI User.")
+				s.httpInternalError(w, err) // TODO(bimmlerd) do we leak too much information here?
+				return
+			}
 		}
 
 		// redirect
@@ -167,7 +185,7 @@ func (s server) Consent(w http.ResponseWriter, r *http.Request) {
 	//fetch information about the request
 	cinfo, err := s.hydra.GetConsentInfo(challenge)
 	if err != nil {
-		log.Error("Error getting consent info", "error", err)
+		log.WithError(err).Error("Error getting consent info")
 		s.httpInternalError(w, err)
 		return
 	}
