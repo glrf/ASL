@@ -14,6 +14,9 @@ type HydraClient struct {
 }
 
 type LoginInfo struct {
+	Skip           bool     `json:"skip"`
+	Subject        string   `json:"subject"`
+	RequestedScope []string `json:"requested_scope"`
 }
 
 func (c HydraClient) GetLoginInfo(challenge string) (LoginInfo, error) {
@@ -22,11 +25,20 @@ func (c HydraClient) GetLoginInfo(challenge string) (LoginInfo, error) {
 	if err != nil {
 		return LoginInfo{}, err
 	}
-	_, err = c.client.Do(request)
+	res, err := c.client.Do(request)
 	if err != nil {
 		return LoginInfo{}, err
 	}
-	return LoginInfo{}, nil
+	buf, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return LoginInfo{}, err
+	}
+	logInfo := LoginInfo{}
+	err = json.Unmarshal(buf, &logInfo)
+	if err != nil {
+		return LoginInfo{}, err
+	}
+	return logInfo, nil
 }
 
 type AcceptLoginRequest struct {

@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"html"
+	"html/template"
 	"net/http"
 	"time"
 )
@@ -22,9 +23,11 @@ type adminClient interface {
 }
 
 type Server struct {
-	router *mux.Router
-	client adminClient
-	db     Storage
+	router          *mux.Router
+	client          adminClient
+	db              Storage
+	templateLogin   *template.Template
+	templateConsent *template.Template
 }
 
 type Storage interface {
@@ -56,10 +59,20 @@ func main() {
 	// Prepare HTTP server
 	r := mux.NewRouter()
 	ser := Server{client: &client, router: r, db: db}
+
+	// Prepare template
+	ser.templateLogin, err = template.ParseFiles("./template/login.html")
+	if err != nil {
+		log.WithError(err).Fatal("Failed to parse login template.")
+	}
+	ser.templateConsent, err = template.ParseFiles("./template/consent.html")
+	if err != nil {
+		log.WithError(err).Fatal("Failed to parse consent template.")
+	}
+
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
 	r.HandleFunc("/user/{id}", ser.GetUser)
-
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -80,31 +93,38 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 		s.httpBadRequest(w, "no login challenge provided")
 		return
 	}
-	_, err := s.client.GetLoginInfo(keys[0])
+	info, err := s.client.GetLoginInfo(keys[0])
 	if err != nil {
 		log.Error("Error getting login info", "error", err)
 		s.httpInternalError(w, err)
 		return
 	}
 
-	authenticated := false
-	skip := false
+	authenticated := info.Skip
+	username := info.Subject
 
 	// TODO(Fischi): We don't actually use the information we get. We should
 
-	if r.Method == http.MethodGet && !skip {
-		// TODO(Fischi): Show login screen
-		authenticated = true
+	if r.Method == http.MethodGet && !info.Skip {
+		err := s.templateLogin.Execute(w, map[string]interface{}{})
+		if err != nil {
+			s.httpInternalError(w, err)
+		}
+		return
 	}
 
 	if r.Method == http.MethodPost {
-		// TODO(Fischi): Check authentication
-		// use db.Login
+		r.ParseForm()
+		username = r.FormValue("username")
+		password := r.FormValue("password")
+		authenticated = s.db.Login(r.Context(), username, password)
+		log.WithField("username", username).Info("Tried to log in")
 	}
 
 	// Accept login request
 	if authenticated {
-		acceptBody := AcceptLoginRequest{Subject: "a", Remember: false, RememberFor: 300}
+		log.WithField("username", username).Info("Authenticated")
+		acceptBody := AcceptLoginRequest{Subject: username, Remember: false, RememberFor: 300}
 		accRes, err := s.client.AcceptLogin(keys[0], acceptBody)
 		if err != nil {
 			log.Error("Error accepting login", "error", err)
@@ -137,11 +157,14 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 		s.httpInternalError(w, err)
 		return
 	}
-	consent := false
+	consent := cinfo.Skip
 
 	if r.Method == http.MethodGet && !cinfo.Skip {
-		// TODO(Fischi): Show Consent screen
-		consent = true
+		err := s.templateConsent.Execute(w, map[string]interface{}{})
+		if err != nil {
+			s.httpInternalError(w, err)
+		}
+		return
 	}
 	if r.Method == http.MethodPost {
 		//TODO: check, whether the user gave consent and user should give consent if not...
@@ -149,7 +172,7 @@ func (s Server) Consent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if consent {
-		requestBody := AcceptConsentRequest{GrantScope: cinfo.RequestedScope, GrantAccessTokenAudience: cinfo.RequestedAudience, Remember: false, RememberFor: 300}
+		requestBody := AcceptConsentRequest{GrantScope: cinfo.RequestedScope, GrantAccessTokenAudience: cinfo.RequestedAudience, Remember: true, RememberFor: 300}
 		conRes, err := s.client.AcceptConsent(keys[0], requestBody)
 		if err != nil {
 			log.Error("Error giving consent", "error", err)
