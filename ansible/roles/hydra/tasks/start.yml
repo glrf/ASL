@@ -23,9 +23,9 @@
     env:
       DSN: memory
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
-      URLS_SELF_ISSUER: "https://hydra.fadalax.io:9000"
-      URLS_CONSENT: "http://localhost:8088/consent"
-      URLS_LOGIN: "http://localhost:8088/login"
+      URLS_SELF_ISSUER: "{{ hydra_self_issuer }}"
+      URLS_CONSENT: "{{ hydra_idp_url }}/consent"
+      URLS_LOGIN: "{{ hydra_idp_url }}/login"
       SERVE_TLS_KEY_PATH: "/cert.key"
       SERVE_TLS_CERT_PATH: "/cert.pem"
       LOG_LEVEL: "debug"
@@ -39,23 +39,6 @@
     port: 9000
     delay: 5
 
-- name: Create Client
-  docker_container:
-    name: hydra-exec-test
-    image: "oryd/hydra:{{ hydra_version }}"
-    command: "clients create --skip-tls-verify \
-    --id special_laura --secret blubaaaaahhhhhhhhh \
-    --grant-types authorization_code,refresh_token,client_credentials,implicit \
-    --response-types token,code,id_token \
-    --scope blub,openid,offline \
-    --callbacks http://127.0.0.1:9010/callback"
-    networks:
-      - name:  "{{ hydra_network }}"
-    env:
-      DSN: memory
-      SECRETS_SYSTEM: "{{ hydra_system_secret }}"
-      HYDRA_ADMIN_URL: "https://hydra:4445"
-
 - name: Create Client - Vault
   docker_container:
     name: hydra-exec-vault
@@ -65,7 +48,7 @@
     --grant-types authorization_code,refresh_token,client_credentials,implicit \
     --response-types token,code,id_token \
     --scope testp,openid,offline \
-    --callbacks https://vault.fadalax.io:8201/ui/vault/auth/oidc/oidc/callback"
+    --callbacks {{ hydra_vault_url }}/ui/vault/auth/oidc/oidc/callback"
     networks:
       - name:  "{{ hydra_network }}"
     env:
