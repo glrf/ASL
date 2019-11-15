@@ -1,0 +1,28 @@
+---
+- name: Install python docker module
+  become: true
+  package:
+    name: python-docker
+    state: present
+
+- name: Create network
+  docker_network:
+    name: "{{ frontend_network }}"
+
+- name: Create frontend container
+  docker_container:
+    name: frontend
+    image: "fadalax/frontend:v0.0.1"
+    restart_policy: always
+    ports:
+     - "443:443"
+     - "80:80"
+    networks:
+      - name:  "{{ frontend_network }}"
+    env:
+      SERVE_TLS_KEY_PATH: "/cert.key"
+      SERVE_TLS_CERT_PATH: "/cert.pem"
+      
+    volumes:
+      - /home/vagrant/cert.key:/cert.key
+      - /home/vagrant/cert.pem:/cert.pem

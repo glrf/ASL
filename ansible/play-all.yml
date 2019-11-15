@@ -31,6 +31,8 @@
     - role: vault_add_ca
     - role: mysql
     - role: idp
+    - role: vault_issue_cert
+    - role: frontend
   vars_files:
     - ./vault
   vars:
