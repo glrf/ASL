@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"html"
 	"html/template"
+	"io/ioutil"
 	"net/http"
 	"time"
 )
@@ -104,8 +105,6 @@ func (s Server) Login(w http.ResponseWriter, r *http.Request) {
 
 	authenticated := info.Skip
 	username := info.Subject
-
-	// TODO(Fischi): We don't actually use the information we get. We should
 
 	if r.Method == http.MethodGet && !info.Skip {
 		err := s.templateLogin.Execute(w, map[string]interface{}{})
@@ -217,62 +216,52 @@ func (s Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s Server) EditUser(w http.ResponseWriter, r *http.Request){
+func (s Server) EditUser(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
 	vars := mux.Vars(r)
-	id, ok := vars["uid"]
+	id, ok := vars["id"]
 	if !ok {
 		log.Error("EditUser request without ID.")
 		s.httpBadRequest(w, "missing user id")
 		return
 	}
-	firstName, ok := vars["firstName"]
-	if !ok {
-		log.Error("EditUser request without firstName.")
-		s.httpBadRequest(w, "missing firstName")
+
+	var u User
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil || len(reqBody) == 0 {
+		log.WithError(err).Error("EditUser request without body")
+		s.httpBadRequest(w, "Could not parse body.")
 		return
 	}
-	lastName, ok := vars["lastName"]
-	if !ok {
-		log.Error("EditUser request without lastName.")
-		s.httpBadRequest(w, "missing lastName")
-		return
-	}
-	email, ok := vars["email"]
-	if !ok {
-		log.Error("EditUser request without email.")
-		s.httpBadRequest(w, "missing email")
+	err = json.Unmarshal(reqBody, &u)
+	if err != nil {
+		log.WithError(err).Error("EditUser error unmarshaling json")
+		s.httpInternalError(w, fmt.Errorf("failed to parse body"))
 		return
 	}
 
-	user := new(User)
-	user.UserID = id
-	user.Email = email
-	user.LastName = lastName
-	user.FirstName = firstName
+	if id != u.UserID {
+		log.Error("EditUser user id does not match")
+		s.httpBadRequest(w, "path id does not match id in json object")
+		return
+	}
 
-	err := s.db.EditUser(ctx, *user)
-
-	//print errors
+	err = s.db.EditUser(ctx, u)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.WithField("user-id", user.UserID).Warn("user not found")
+			log.WithField("user-id", u.UserID).Warn("user not found")
 			s.httpNotFound(w)
 			return
 		}
-		log.WithError(err).WithField("user-id", user.UserID).Error("Fialed to edit user.")
+		log.WithError(err).WithField("user-id", u.UserID).Error("Failed to edit user.")
 		s.httpInternalError(w, fmt.Errorf("failed to edit user"))
 		return
 	}
-
-	w.Header().Set("content-type", "application/json")
-	err = json.NewEncoder(w).Encode(true)
-	if err != nil {
-		s.httpInternalError(w, err)
-	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
 
 }
 
