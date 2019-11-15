@@ -18,7 +18,7 @@ import (
 var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
-var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200","URL of the Vault instance")
+var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200", "URL of the Vault instance")
 
 type server struct {
 	router          *mux.Router
@@ -67,8 +67,17 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
-	// Smoke test for Vault
 	exists, err := vc.PKIRoleExists("a3")
+	if err != nil {
+		log.WithError(err).Fatal("Failed to fetch known good PKI role.")
+	}
+	if !exists {
+		err = vc.CreatePKIUser("a3")
+		if err != nil {
+			log.WithError(err).Fatalf("could not create pki")
+		}
+	}
+	exists, err = vc.PKIRoleExists("a3")
 	if err != nil || !exists {
 		log.WithError(err).Fatal("Failed to fetch known good PKI role.")
 	}
@@ -165,7 +174,7 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 			s.httpInternalError(w, err) // TODO(bimmlerd) do we leak too much information here?
 			return
 		}
-		
+
 		if !exists {
 			err := s.vault.CreatePKIUser(username)
 			if err != nil {

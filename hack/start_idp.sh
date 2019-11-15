@@ -5,4 +5,4 @@ docker run --name idp-mysql -p 3306:3306 -v $(pwd)/../ansible/roles/mysql/files:
 -e MYSQL_ROOT_PASSWORD=foo  -e MYSQL_DATABASE=imovies -e MYSQL_USER=user -e MYSQL_PASSWORD=pass mysql
 
 cd ./../IdP/
-go run . -dsn="user:pass@(localhost)/imovies" -admin-url="https://hydra.fadalax.tech:9001"
+VAULT_TOKEN=ADDTOKENHERE go run . -dsn="user:pass@(localhost)/imovies" -admin-url="https://hydra.fadalax.tech:9001"
