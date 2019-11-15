@@ -14,6 +14,7 @@
     name: frontend
     image: "fadalax/frontend:v0.0.1"
     restart_policy: always
+    pull: yes
     ports:
      - "443:443"
      - "80:80"
