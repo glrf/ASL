@@ -9,6 +9,8 @@
   docker_container:
     name: idp
     image: fadalax/asl-idp
+    volumes:
+      - "/etc/ssl/:/etc/ssl:ro"
     networks:
       - name: "{{ idp_container_network }}"
     state: started

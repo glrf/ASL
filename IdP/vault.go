@@ -119,7 +119,7 @@ func (v *vault) CreatePKIUser(name string) error {
 
 	// Add policy
 	_, err = v.c.Write(fmt.Sprintf("/sys/policy%s", mountPath), map[string]interface{}{
-		"policy": fmt.Sprintf("path \"%s\" {capabilities = [ \"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\" ]}", mountPath),
+		"policy": fmt.Sprintf("path \"%s/*\" {capabilities = [ \"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\" ]}", mountPath),
 	})
 	if err != nil {
 		l.WithError(err).Error("Failed to create policy.")
