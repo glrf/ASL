@@ -21,7 +21,7 @@
     content: "{{ vault_ca_cert.json.data.certificate }}" 
     dest: "/usr/local/share/ca-certificates/vault_ca.crt"
   become: true
-  when: ansible_distribution == "Ubuntu"
+  when: ansible_distribution == 'Debian' or ansible_distribution == "Ubuntu"
 
 - name: update ca-certificates
   command: "update-ca-certificates"

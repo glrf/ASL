@@ -67,24 +67,6 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
-	exists, err := vc.PKIRoleExists("a3")
-	if err != nil {
-		log.WithError(err).Fatal("Failed to fetch known good PKI role.")
-	}
-	if !exists {
-		err = vc.CreatePKIUser("a3")
-		if err != nil {
-			log.WithError(err).Fatalf("could not create pki")
-		}
-	}
-	exists, err = vc.PKIRoleExists("a3")
-	if err != nil || !exists {
-		log.WithError(err).Fatal("Failed to fetch known good PKI role.")
-	}
-	exists, err = vc.PKIRoleExists("a4")
-	if err != nil || exists {
-		log.WithError(err).Fatal("Smoke test failed.")
-	}
 
 	// Prepare HTTP server
 	r := mux.NewRouter()
