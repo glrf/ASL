@@ -1,0 +1,46 @@
+<div>
+  <h3>Your user info:</h3>
+
+  <div *ngIf="!editEnabled">
+    <ul>
+      <li>First name: {{userInfo.firstName}}</li>
+      <li>Last name: {{userInfo.lastName}}</li>
+      <li>Email: {{userInfo.email}}</li>
+    </ul>
+  </div>
+
+  <div *ngIf="editEnabled">
+    <ul>
+      <li>
+        <mat-form-field>
+          <input matInput [formControl]="firstNameField" placeholder="First Name">
+        </mat-form-field>
+      </li>
+      <li>
+        <mat-form-field>
+          <input matInput [formControl]="lastNameField" placeholder="Last Name">
+        </mat-form-field>
+      </li>
+      <li>
+        <mat-form-field>
+          <input matInput [formControl]="emailField" placeholder="Email">
+          <mat-error *ngIf="emailField.invalid">{{getErrorMessage()}}</mat-error>
+        </mat-form-field>
+      </li>
+    </ul>
+  </div>
+
+  <div *ngIf="editEnabled">
+    <button (click)="saveUserInfo()"> Save </button>
+  </div>
+
+  <div *ngIf="!editEnabled">
+    <button (click)="startIssueCertificateProcess()"> Issue Certificate </button>
+    <button (click)="enableEditUserInfo()"> Edit User Information </button>
+    <button (click)="startChangePasswordProcess()"> Change Password </button>
+  </div>
+
+</div>
+
+
+
