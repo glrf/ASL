@@ -1,0 +1,6 @@
+---
+vault_url: "https://vault.fadalax.tech:8200"
+vault_issue_domain: "fadalax.tech"
+vault_issue_ssl_cert_folder: /home/vagrant
+vault_issue_ssl_cert: /home/vagrant/cert.pem
+vault_issue_ssl_key: /home/vagrant/cert.key
