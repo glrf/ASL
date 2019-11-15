@@ -6,6 +6,8 @@ import {first} from 'rxjs/operators';
 import {MatDialog, MatDialogRef} from '@angular/material';
 import {ChangePasswordDialogComponent} from '../change-password-dialog/change-password-dialog.component';
 import {ChangePasswordDialogData} from '../entities/changePasswordDialogData';
+import {ActivatedRoute} from '@angular/router';
+import {OAuthService} from 'angular-oauth2-oidc';
 
 @Component({
   selector: 'app-user-detail',
@@ -16,7 +18,6 @@ export class UserDetailComponent implements OnInit {
 
   @Input()
   private uid: string;
-
   private userInfo: User;
   private editEnabled = false;
 
@@ -31,7 +32,11 @@ export class UserDetailComponent implements OnInit {
         '';
   }
 
-  constructor(private userService: UserService, private dialog: MatDialog) {
+  constructor(
+    private activatedRoute: ActivatedRoute,
+    private oauthService: OAuthService,
+    private userService: UserService,
+    private dialog: MatDialog) {
   }
 
   ngOnInit() {
@@ -84,3 +89,13 @@ export class UserDetailComponent implements OnInit {
   }
 
 }
+
+
+
+
+
+
+
+
+
+

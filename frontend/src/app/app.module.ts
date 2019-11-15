@@ -8,12 +8,17 @@ import {MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule} fr
 import {ReactiveFormsModule} from '@angular/forms';
 import { ChangePasswordDialogComponent } from './change-password-dialog/change-password-dialog.component';
 import {HttpClientModule} from '@angular/common/http';
+import {OAuthModule} from 'angular-oauth2-oidc';
+import { HomeComponent } from './home/home.component';
+import {RouterModule} from '@angular/router';
+import {User} from './entities/user';
 
 @NgModule({
   declarations: [
     AppComponent,
     UserDetailComponent,
-    ChangePasswordDialogComponent
+    ChangePasswordDialogComponent,
+    HomeComponent
   ],
   imports: [
     BrowserModule,
@@ -23,7 +28,12 @@ import {HttpClientModule} from '@angular/common/http';
     ReactiveFormsModule,
     MatInputModule,
     MatDialogModule,
-    HttpClientModule
+    HttpClientModule,
+    OAuthModule.forRoot(),
+    RouterModule.forRoot([
+      {path: '', component: HomeComponent},
+      {path: 'token', component: UserDetailComponent}
+    ])
   ],
   entryComponents: [
     ChangePasswordDialogComponent

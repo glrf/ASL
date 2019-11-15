@@ -29,6 +29,11 @@
       SERVE_TLS_KEY_PATH: "/cert.key"
       SERVE_TLS_CERT_PATH: "/cert.pem"
       LOG_LEVEL: "debug"
+      SERVE_PUBLIC_CORS_ENABLED: "true"
+      SERVE_PUBLIC_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE" 
+      SERVE_ADMIN_CORS_ENABLED: "true"
+      SERVE_ADMIN_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE" 
+      
     volumes:
       - /home/vagrant/cert.key:/cert.key
       - /home/vagrant/cert.pem:/cert.pem
@@ -52,6 +57,21 @@
     networks:
       - name:  "{{ hydra_network }}"
     env:
-      DSN: memory
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
       HYDRA_ADMIN_URL: "https://hydra:4445"
+
+- name: Create Client - Fadalax Frontend
+  docker_container:
+    name: hydra-exec-fadalax-frontend
+    image: "oryd/hydra:{{ hydra_version }}"
+    command: "clients create --skip-tls-verify \
+    --id fadalax-frontend --secret {{ hydra_fadalax_frontend_secret }} \
+    --grant-types authorization_code,refresh_token,client_credentials,implicit \
+    --response-types token,code,id_token \
+    --scope testp,openid,offline \
+    --callbacks https://fadalax.tech/token"
+    networks:
+      - name:  "{{ hydra_network }}"
+    env:
+      SECRETS_SYSTEM: "{{ hydra_system_secret }}"
+      HYDRA_ADMIN_URL: "https://hydra:4445" 
