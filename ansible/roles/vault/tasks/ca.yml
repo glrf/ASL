@@ -83,7 +83,8 @@
   uri:
     url: "{{ vault_url }}/v1/pki/roles/sys-internal"
     method: POST
-    body: "{\"allowed_domains\": \"{{ vault_ca_base_domain }}\", \"allow_subdomains\": true, \"max_ttl\": \"7200h\"}"
+    body: "{\"allowed_domains\": \"{{ vault_ca_base_domain }}\", \"allow_subdomains\": true, \"allow_bare_domains\": true, \"max_ttl\": \"7200h\"}"
+
     body_format: json
     status_code: 204
     validate_certs: false
