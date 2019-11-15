@@ -17,9 +17,9 @@ import {OAuthService} from 'angular-oauth2-oidc';
 export class UserDetailComponent implements OnInit {
 
   @Input()
-  private uid: string;
-  private userInfo: User;
-  private editEnabled = false;
+  public uid: string;
+  public userInfo: User;
+  public editEnabled = false;
 
   firstNameField = new FormControl('');
   lastNameField = new FormControl('');
