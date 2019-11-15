@@ -90,8 +90,8 @@ func (s *storage) ChangePassword(ctx context.Context, userID string, password st
 	return nil
 }
 
-func (s *storage) EdditUser(ctx context.Context, user dbUser) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE users SET firstname = ?, lastname = ?, email = ? WHERE uid=?`, user.firstname, user.lastname, user.email, user.uid)
+func (s *storage) EditUser(ctx context.Context, user User) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET firstname = ?, lastname = ?, email = ? WHERE uid=?`, user.FirstName, user.LastName, user.Email, user.UserID)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			log.WithError(err).Error("Failed to edit user")

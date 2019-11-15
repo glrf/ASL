@@ -34,6 +34,7 @@ type Storage interface {
 	GetUser(ctx context.Context, userID string) (User, error)
 	ChangePassword(ctx context.Context, userID string, password string) error
 	Login(ctx context.Context, userID string, password string) bool
+	EditUser(ctx context.Context, user User) error
 }
 
 var adminURl = flag.String("admin-url", "https://localhost:9001", "url of the hydra admin api")
@@ -72,7 +73,8 @@ func main() {
 
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
-	r.HandleFunc("/user/{id}", ser.GetUser)
+	r.HandleFunc("/user/{id}", ser.GetUser).Methods("GET")
+	r.HandleFunc("/user/{id}", ser.EditUser).Methods("PUT")
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -213,6 +215,65 @@ func (s Server) GetUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.httpInternalError(w, err)
 	}
+}
+
+func (s Server) EditUser(w http.ResponseWriter, r *http.Request){
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+
+	vars := mux.Vars(r)
+	id, ok := vars["uid"]
+	if !ok {
+		log.Error("EditUser request without ID.")
+		s.httpBadRequest(w, "missing user id")
+		return
+	}
+	firstName, ok := vars["firstName"]
+	if !ok {
+		log.Error("EditUser request without firstName.")
+		s.httpBadRequest(w, "missing firstName")
+		return
+	}
+	lastName, ok := vars["lastName"]
+	if !ok {
+		log.Error("EditUser request without lastName.")
+		s.httpBadRequest(w, "missing lastName")
+		return
+	}
+	email, ok := vars["email"]
+	if !ok {
+		log.Error("EditUser request without email.")
+		s.httpBadRequest(w, "missing email")
+		return
+	}
+
+	user := new(User)
+	user.UserID = id
+	user.Email = email
+	user.LastName = lastName
+	user.FirstName = firstName
+
+	err := s.db.EditUser(ctx, *user)
+
+	//print errors
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.WithField("user-id", user.UserID).Warn("user not found")
+			s.httpNotFound(w)
+			return
+		}
+		log.WithError(err).WithField("user-id", user.UserID).Error("Fialed to edit user.")
+		s.httpInternalError(w, fmt.Errorf("failed to edit user"))
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	err = json.NewEncoder(w).Encode(true)
+	if err != nil {
+		s.httpInternalError(w, err)
+	}
+
 }
 
 func (s Server) httpInternalError(w http.ResponseWriter, e error) {
