@@ -1,0 +1,15 @@
+# Step 1: Build the app in image 'builder'
+FROM node:13.1-alpine AS builder
+
+WORKDIR /usr/src/app
+COPY . .
+RUN yarn && yarn prod
+RUN ls /usr/src/app/dist
+# Step 2: Use build output from 'builder'
+FROM nginx:stable-alpine
+LABEL version="0.0.1"
+
+COPY nginx.conf /etc/nginx/nginx.conf
+
+WORKDIR /usr/share/nginx/html
+COPY --from=builder /usr/src/app/dist/frontend/ .

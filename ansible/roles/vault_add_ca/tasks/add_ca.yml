@@ -1,0 +1,29 @@
+---
+- name: Read in key
+  include_vars:
+    file: "{{ vault_local_dir }}/key.json"
+    name: ca_key
+
+- name: Get ca
+  uri:
+    url: "{{ vault_url }}/v1/pki/cert/ca"
+    method: GET
+    body_format: json
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  register: vault_ca_cert
+
+- name: Move root ca to trusted ca 
+  copy: 
+    content: "{{ vault_ca_cert.json.data.certificate }}" 
+    dest: "/usr/local/share/ca-certificates/vault_ca.crt"
+  become: true
+  when: ansible_distribution == 'Debian' or ansible_distribution == "Ubuntu"
+
+- name: update ca-certificates
+  command: "update-ca-certificates"
+  become: true
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
