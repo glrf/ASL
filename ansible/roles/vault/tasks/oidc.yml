@@ -68,12 +68,11 @@
   delegate_to: 127.0.0.1
   when: not auth_engines.json["jwt/"] is defined
 
-- name: Configure OIDC
+- name: Configure JWT
   uri:
     url: "{{ vault_url }}/v1/auth/jwt/config"
     method: POST
-    body: "{\"oidc_discovery_url\":\"{{ vault_oidc_url }}\", \"oidc_client_id\": \"{{ vault_jwt_client }}\", \
-            \"oidc_client_secret\": \"{{ vault_jwt_secret }}\", \"default_role\": \"reader\" } "
+    body: "{\"oidc_discovery_url\":\"{{ vault_oidc_url }}\", \"default_role\": \"reader\" } "
     body_format: json
     status_code: 204
     validate_certs: false
@@ -85,7 +84,7 @@
   uri:
     url: "{{ vault_url }}/v1/auth/jwt/role/reader"
     method: POST
-    body: "{\"bound_audiences\":\"{{ vault_jwt_client }}\", \
+    body: "{\"bound_audiences\":\"{{ vault_jwt_client }}\", \"role_type\": \"jwt\",\
            \"allowed_redirect_uris\":[\"{{ vault_jwt_rediect_uri }}\"], \
            \"user_claim\": \"sub\", \"policies\": [\"default\"]}"
     body_format: json
