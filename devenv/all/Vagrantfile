@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 #
-$instances = 3
+$instances = 4
 $memory = 2048
 $cpus = 2
 $pubkey = "id_rsa.pub"
