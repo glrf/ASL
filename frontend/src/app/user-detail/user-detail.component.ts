@@ -18,6 +18,7 @@ export class UserDetailComponent implements OnInit {
 
   @Input()
   public uid: string;
+
   public userInfo: User;
   public editEnabled = false;
 
@@ -33,8 +34,6 @@ export class UserDetailComponent implements OnInit {
   }
 
   constructor(
-    private activatedRoute: ActivatedRoute,
-    private oauthService: OAuthService,
     private userService: UserService,
     private dialog: MatDialog) {
   }

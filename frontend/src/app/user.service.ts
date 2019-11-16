@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import {Observable, of} from 'rxjs';
 import {User} from './entities/user';
-import {HttpClient, HttpParams} from '@angular/common/http';
+import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
+import {OAuthService} from 'angular-oauth2-oidc';
 
 @Injectable({
   providedIn: 'root'
@@ -10,7 +11,7 @@ export class UserService {
 
   private baseUrl = '';
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private oauthService: OAuthService) {
   }
 
   getUserInfo(userId: string): Observable<User> {
