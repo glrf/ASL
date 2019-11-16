@@ -29,12 +29,7 @@ import {User} from './entities/user';
     MatInputModule,
     MatDialogModule,
     HttpClientModule,
-    OAuthModule.forRoot({
-      resourceServer: {
-        allowedUrls: ['https://idp.fadalax.tech'],
-        sendAccessToken: true
-      }
-    }),
+    OAuthModule.forRoot(),
     RouterModule.forRoot([
       {path: '**', component: HomeComponent}
     ])

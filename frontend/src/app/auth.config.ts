@@ -15,6 +15,6 @@ export const authConfig: AuthConfig = {
   // The first three are defined by OIDC. The 4th is a usecase-specific one
   scope: 'openid',
 
-  responseType: 'id_token',
+  requestAccessToken: false,
 };
 
