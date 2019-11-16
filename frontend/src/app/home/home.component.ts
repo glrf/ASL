@@ -8,6 +8,8 @@ import {OAuthService} from 'angular-oauth2-oidc';
 })
 export class HomeComponent {
 
+  randomUid = 'userID';
+
   constructor() {
   }
 }
