@@ -13,6 +13,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -29,6 +30,8 @@ type server struct {
 	templateLogin   *template.Template
 	templateConsent *template.Template
 }
+
+const emailRegex =  "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 
 type hydraAdminClient interface {
 	GetLoginInfo(challenge string) (LoginInfo, error)
@@ -251,7 +254,6 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
-	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 
@@ -262,24 +264,46 @@ func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
 		s.httpBadRequest(w, "missing user id")
 		return
 	}
+	l := log.WithField("uid", id)
 
 	var u User
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil || len(reqBody) == 0 {
-		log.WithError(err).Error("EditUser request without body")
+		l.WithError(err).Error("EditUser request without body")
 		s.httpBadRequest(w, "Could not parse body.")
 		return
 	}
 	err = json.Unmarshal(reqBody, &u)
 	if err != nil {
-		log.WithError(err).Error("EditUser error unmarshaling json")
+		l.WithError(err).Error("EditUser error unmarshaling json")
 		s.httpInternalError(w, fmt.Errorf("failed to parse body"))
 		return
 	}
 
 	if id != u.UserID {
-		log.Error("EditUser user id does not match")
+		l.Error("EditUser user id does not match")
 		s.httpBadRequest(w, "path id does not match id in json object")
+		return
+	}
+
+	if !regexp.MustCompile(alphanumeric).MatchString(u.UserID) || len(u.UserID) == 0 {
+		l.Error("Invalid id format.")
+		s.httpBadRequest(w, "Invalid id format")
+		return
+	}
+	if !regexp.MustCompile(alphanumeric).MatchString(u.FirstName) || len(u.FirstName) == 0 {
+		l.Error("Invalid first name format.")
+		s.httpBadRequest(w, "Invalid first name format")
+		return
+	}
+	if !regexp.MustCompile(alphanumeric).MatchString(u.UserID) || len(u.LastName) == 0 {
+		l.Error("Invalid last name format.")
+		s.httpBadRequest(w, "Invalid last name format")
+		return
+	}
+	if !regexp.MustCompile(emailRegex).MatchString(u.Email) || len(u.Email) == 0 {
+		l.Error("Invalid email format.")
+		s.httpBadRequest(w, "Invalid email format")
 		return
 	}
 
