@@ -139,15 +139,18 @@ func (v *vault) CreatePKIUser(name string) error {
 		return err
 	}
 
-	/*
-		vault write auth/oidc/role/kv-mgr \
-			bound_audiences="$AUTH0_CLIENT_ID" \
-			allowed_redirect_uris="http://127.0.0.1:8200/ui/vault/auth/oidc/oidc/callback" \
-			allowed_redirect_uris="http://localhost:8250/oidc/callback" \
-			user_claim="sub" \
-			policies="reader" \
-			groups_claim="https://example.com/roles"
+	// Add jwt role
+	_, err = v.c.Write(fmt.Sprintf("/auth/jwt/role/%s", name), map[string]interface{}{
+		"bound_audiences": "vault",
+		"user_claim": "sub",
+		"policies": fmt.Sprintf("pki-user/%s", name),
+		"bound_subject": name,
+		"role_type": "jwt",
+	})
+	if err != nil {
+		l.WithError(err).Error("Failed to create jwt role.")
+		return err
+	}
 
-	*/
 	return nil
 }

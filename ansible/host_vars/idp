@@ -2,6 +2,7 @@
 vault_url: "https://vault.fadalax.tech:8200"
 vault_service_account: "idp"
 vault_service_policy: 'path "/auth/oidc/role/*" {capabilities = [ "create", "read", "list"]}
+path "/auth/jwt/role/*" {capabilities = [ "create", "read", "list"]}
 path "sys/mounts/*" {capabilities = [ "create", "read", "update", "delete", "list" ]}
 path "pki-user/+/intermediate/generate/internal" {capabilities = [ "create",  "read", "list", "update"]}
 path "pki/root/sign-intermediate" {capabilities = [ "create", "update"]}
