@@ -11,6 +11,7 @@ path "pki-user/+/roles*" {capabilities = [ "create", "update"]}
 path "sys/policy/pki-user*" {capabilities = [ "create", "read", "update"]}'
 
 vault_issue_domain: "fadalax.tech"
+vault_issue_alt_name: "idp.fadalax.tech"
 vault_issue_ssl_cert_folder: /home/vagrant
 vault_issue_ssl_cert: /home/vagrant/cert.pem
 vault_issue_ssl_key: /home/vagrant/cert.key
