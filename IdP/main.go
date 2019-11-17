@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"html"
@@ -14,6 +15,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -115,8 +117,16 @@ func main() {
 	} else {
 		log.WithField("user", u).Info("Found user.")
 	}
+	// Setup CORS
+	h := handlers.CORS(handlers.AllowedOriginValidator(func(o string) bool {
+		return strings.HasSuffix(o, "fadalax.tech")
+	}), handlers.AllowedMethods([]string{
+		http.MethodGet,
+		http.MethodPut,
+		http.MethodPost,
+	}))(r)
 	// Run
-	log.Fatal(http.ListenAndServe(*listen, r))
+	log.Fatal(http.ListenAndServe(*listen, h))
 }
 
 func (s server) Login(w http.ResponseWriter, r *http.Request) {
