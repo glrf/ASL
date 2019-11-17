@@ -17,13 +17,19 @@ import {OAuthService} from 'angular-oauth2-oidc';
 export class UserDetailComponent implements OnInit {
 
   @Input()
-  public uid: string;
-  public userInfo: User;
+  public uid;
+
+  public userInfo: User = {
+    uid: '',
+    firstName: '',
+    lastName: '',
+    email: ''
+  };
+
   public editEnabled = false;
 
   firstNameField = new FormControl('');
   lastNameField = new FormControl('');
-
   emailField = new FormControl('', [Validators.required, Validators.email]);
 
   getErrorMessage() {
@@ -33,20 +39,19 @@ export class UserDetailComponent implements OnInit {
   }
 
   constructor(
-    private activatedRoute: ActivatedRoute,
-    private oauthService: OAuthService,
     private userService: UserService,
     private dialog: MatDialog) {
   }
 
   ngOnInit() {
-    this.userService.getUserInfo(this.uid)
-      .subscribe(user => {
+    this.userService.getUserInfo().subscribe(user => {
+      if (user) {
         this.userInfo = user;
         this.firstNameField.setValue(this.userInfo.firstName);
         this.lastNameField.setValue(this.userInfo.lastName);
         this.emailField.setValue(this.userInfo.email);
-      });
+      }
+    });
   }
 
   enableEditUserInfo() {

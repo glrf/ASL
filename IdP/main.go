@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"html"
@@ -14,6 +15,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -106,11 +108,11 @@ func main() {
 
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
-	r.HandleFunc("/user", ser.GetUser).Methods("GET")
-	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
-	r.HandleFunc("/user/password", ser.EditPw).Methods("PUT")
-	r.HandleFunc("/cert", ser.IssueCert).Methods("GET")
-	r.HandleFunc("/cert", ser.RevokeCert).Methods("DELETE")
+	r.HandleFunc("/cert", ser.IssueCert).Methods(http.MethodGet)
+	r.HandleFunc("/cert", ser.RevokeCert).Methods(http.MethodDelete)
+	r.HandleFunc("/user", ser.GetUser).Methods(http.MethodGet)
+	r.HandleFunc("/user", ser.EditUser).Methods(http.MethodPut)
+	r.HandleFunc("/user/password", ser.EditPw).Methods(http.MethodPut)
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -118,8 +120,18 @@ func main() {
 	} else {
 		log.WithField("user", u).Info("Found user.")
 	}
+	// Setup CORS
+	h := handlers.CORS(handlers.AllowedOriginValidator(func(o string) bool {
+		return strings.HasSuffix(o, "fadalax.tech")
+	}), handlers.AllowedMethods([]string{
+		http.MethodGet,
+		http.MethodPut,
+		http.MethodPost,
+		http.MethodOptions,
+	}), handlers.AllowedHeaders([]string{"Authorization"}),
+	handlers.AllowCredentials())(r)
 	// Run
-	log.Fatal(http.ListenAndServe(*listen, r))
+	log.Fatal(http.ListenAndServe(*listen, h))
 }
 
 func (s server) Login(w http.ResponseWriter, r *http.Request) {
