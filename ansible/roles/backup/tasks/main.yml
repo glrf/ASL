@@ -22,6 +22,14 @@
   become: true
   delegate_to: backup
 
-- name: Synchronization using rsync protocol (push)
-  command: "/usr/bin/rsync -e \"ssh -o StrictHostKeyChecking=no\"--delay-updates -F --compress -avzhe ssh /home/hydra-backup/src hydra-backup@backup.fadalax.tech:/home/hydra-backup/dst"
+- name: Create target directory
+  command: "ssh {{ inventory_hostname }}-backup@backup.fadalax.tech mkdir -p /home/{{ inventory_hostname }}-backup{{ item }}"
   become: yes
+  with_items: "{{ backup_sources }}"
+  when: backup_sources is defined
+
+- name: Backup sources
+  command: "/usr/bin/rsync -e \"ssh -o StrictHostKeyChecking=no\"--delay-updates -F --compress -avzhe ssh {{ item }} {{ inventory_hostname }}-backup@backup.fadalax.tech:/home/{{ inventory_hostname }}-backup{{ item }}"
+  become: yes
+  with_items: "{{ backup_sources }}"
+  when: backup_sources is defined

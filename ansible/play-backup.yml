@@ -1,4 +1,5 @@
 ---
-- hosts: hydra
+- hosts: all
   roles:
     - role: backup
+
