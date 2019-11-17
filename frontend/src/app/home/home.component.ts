@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import {OAuthService} from 'angular-oauth2-oidc';
+import {UserService} from '../user.service';
 
 @Component({
   selector: 'app-home',
@@ -8,8 +9,7 @@ import {OAuthService} from 'angular-oauth2-oidc';
 })
 export class HomeComponent {
 
-  randomUid = 'userID';
+  uid = 'a3';
 
-  constructor() {
-  }
+  constructor() {}
 }

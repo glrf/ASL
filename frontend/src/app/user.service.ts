@@ -9,15 +9,13 @@ import {OAuthService} from 'angular-oauth2-oidc';
 })
 export class UserService {
 
-  private baseUrl = '';
+  private baseUrl = 'http://idp.fadalax.tech:8088/';
 
   constructor(private http: HttpClient, private oauthService: OAuthService) {
   }
 
   getUserInfo(userId: string): Observable<User> {
-    /*return this.http.get<User>(this.baseUrl + '/user/detail/get', {
-      params: new HttpParams().set('uid', userId)
-    });*/
+    // return this.http.get<User>(this.baseUrl + 'user/' + userId);
     return of({
       uid: userId,
       firstName: 'userFirstName',
@@ -27,12 +25,12 @@ export class UserService {
   }
 
   saveUserInfo(userInfo: User): Observable<boolean> {
-    // return this.http.post<boolean>(this.baseUrl + '/user/detail/update', userInfo);
+    // return this.http.post<boolean>(this.baseUrl + '/user', userInfo);
     return of(true);
   }
 
   changeUserPassword(userId: string, newPassword: string): Observable<boolean> {
-    // return this.http.post<boolean>(this.baseUrl + '/user/password/change', userInfo);
+    // return this.http.post<boolean>(this.baseUrl + '/user/password/change', newPassword);
     return of(true);
   }
 }
