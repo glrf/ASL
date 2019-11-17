@@ -1,0 +1,8 @@
+---
+nginx_proxy_net: "container_dmz"
+# Keep this in sync with the other roles setting up the containers.
+nginx_proxy_backends:
+  - domain: fadalax.tech
+    container_name: frontend
+  - domain: idp.fadalax.tech
+    container_name: idp

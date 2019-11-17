@@ -5,22 +5,27 @@
     name: python-docker
     state: present
 
+- name: Create networks
+  docker_network:
+    name: "{{ item }}"
+  with_items:
+    - "{{ idp_container_dmz_network }}"
+    - "{{ idp_container_db_network }}"
+
 - name: Create and start idp container
   docker_container:
     name: idp
-    image: fadalax/asl-idp
+    image: fadalax/asl-idp:v0.0.1
     volumes:
       - "/etc/ssl/:/etc/ssl:ro"
     networks:
-      - name: "{{ idp_container_network }}"
+      - name: "{{ idp_container_db_network }}"
+      - name: "{{ idp_container_dmz_network }}"
     state: started
     pull: yes
-    exposed_ports:
-      - "8088"
-    published_ports:
-      - "8088:8088"
     env:
       RUNTIME_DSN: "{{ idp_db_user }}:{{ idp_db_password }}@({{ idp_db_host }})/{{ idp_database }}"
       RUNTIME_HYDRA_ADMIN: "{{ idp_hydra_admin }}"
+      RUNTIME_LISTEN: ":80"
       VAULT_TOKEN: "{{ vault_service_token }}"
       VAULT_URL: "{{ vault_url }}"

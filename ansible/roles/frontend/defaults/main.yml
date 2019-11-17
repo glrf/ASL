@@ -1,2 +1,2 @@
 ---
-frontend_network: frontend_net
+frontend_network: "container_dmz"
