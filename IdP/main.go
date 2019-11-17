@@ -107,9 +107,9 @@ func main() {
 
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
-	r.HandleFunc("/user", ser.GetUser).Methods("GET")
-	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
-	r.HandleFunc("/user/password", ser.EditPw).Methods("PUT")
+	r.HandleFunc("/user", ser.GetUser).Methods(http.MethodGet)
+	r.HandleFunc("/user", ser.EditUser).Methods(http.MethodPut)
+	r.HandleFunc("/user/password", ser.EditPw).Methods(http.MethodPut)
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
