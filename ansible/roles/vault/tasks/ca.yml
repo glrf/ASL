@@ -70,7 +70,7 @@
   uri:
     url: "{{ vault_url }}/v1/pki/config/urls"
     method: POST
-    body: "{\"issuing_certificates\": \"http://127.0.0.1:8200/v1/pki/ca\", \"crl_distribution_points\": \"http://127.0.0.1:8200/v1/pki/crl\"}"
+    body: "{\"issuing_certificates\": \"{{ vault_ca_issuing }}\", \"crl_distribution_points\": \"{{ vault_ca_crl }}\"}"
     body_format: json
     status_code: 204
     validate_certs: false

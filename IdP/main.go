@@ -17,13 +17,20 @@ import (
 	"time"
 )
 
+const (
+	authorization = "authorization"
+)
+
 var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
 var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200", "URL of the Vault instance")
+var issuer = flag.String("issuer", "https://hydra.fadalax.tech:9000/", "OpenID Connect issuer")
+var clientID = flag.String("clientID", "fadalax-frontend", "Client id")
 
 type server struct {
 	router          *mux.Router
+	auth            TokenValidator
 	hydra           hydraAdminClient
 	db              storageClient
 	vault           vaultClient
@@ -47,6 +54,11 @@ type storageClient interface {
 	EditUser(ctx context.Context, user User) error
 }
 
+type TokenValidator interface {
+	// Validate returns the uid if the token in authHeader is valid, an error otherwise.
+	Validate(ctx context.Context, authHeader string) (string, error)
+}
+
 type vaultClient interface {
 	PKIRoleExists(role string) (bool, error)
 	CreatePKIUser(name string) error
@@ -67,6 +79,10 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create storage component.")
 	}
+	auth, err := NewValidator(*issuer, *clientID)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create token validation component.")
+	}
 	// Reads token from VAULT_TOKEN automatically.
 	vc, err := NewVaultClient(*vaultURL)
 	if err != nil {
@@ -75,7 +91,7 @@ func main() {
 
 	// Prepare HTTP server
 	r := mux.NewRouter()
-	ser := server{hydra: &hydra, router: r, db: db, vault: vc}
+	ser := server{hydra: &hydra, router: r, db: db, vault: vc, auth: auth}
 
 	// Prepare template
 	ser.templateLogin, err = template.ParseFiles("./template/login.html")
@@ -90,7 +106,9 @@ func main() {
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
 	r.HandleFunc("/user/{id}", ser.GetUser).Methods("GET")
+	r.HandleFunc("/user", ser.GetUser).Methods("GET")
 	r.HandleFunc("/user/{id}", ser.EditUser).Methods("PUT")
+	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -227,13 +245,20 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	vars := mux.Vars(r)
-	id, ok := vars["id"]
-	if !ok {
-		log.Error("GetUser request without ID.")
-		s.httpBadRequest(w, "missing user id")
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
 		return
 	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
 	u, err := s.db.GetUser(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -256,12 +281,17 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
 
-	vars := mux.Vars(r)
-	id, ok := vars["id"]
-	if !ok {
-		log.Error("EditUser request without ID.")
-		s.httpBadRequest(w, "missing user id")
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
 		return
 	}
 	l := log.WithField("uid", id)
@@ -282,7 +312,7 @@ func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
 
 	if id != u.UserID {
 		l.Error("EditUser user id does not match")
-		s.httpBadRequest(w, "path id does not match id in json object")
+		s.httpBadRequest(w, "id does not match id in json object")
 		return
 	}
 
@@ -322,6 +352,46 @@ func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "ok")
 
 }
+
+func (s server) EditPw(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	l := log.WithField("method", "EditPw")
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+	l = l.WithField("uid", id)
+
+	var pw struct{
+		Password    string `json:"password"`
+	}{}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil || len(reqBody) == 0 {
+		l.WithError(err).Error("EditPw request without body")
+		s.httpBadRequest(w, "Could not parse body.")
+		return
+	}
+	err = json.Unmarshal(reqBody, &pw)
+	if err != nil {
+		l.WithError(err).Error("EditPw error unmarshaling json")
+		s.httpInternalError(w, fmt.Errorf("failed to parse body"))
+		return
+	}
+	s.db.ChangePassword(ctx, id, pw.Password)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
+}
+
 
 func (s server) httpInternalError(w http.ResponseWriter, e error) {
 	if e != nil {
