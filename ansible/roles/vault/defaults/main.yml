@@ -33,6 +33,8 @@ vault_secret_threshold: "1"
 vault_ca: false
 vault_ca_base_domain: "example.invalid" 
 vault_ca_domain: "aaa.example.invalid" # needs to be the same as the base domain without the protocol and port
+vault_ca_issuing: "http://127.0.0.1:8200/v1/pki/ca"
+vault_ca_crl: "http://127.0.0.1:8200/v1/pki/crl"
 # If set the vault url needs to be a subdomain of the base domain
 vault_ca_bootstrap_ssl: false 
 vault_ca_bootstrap_url: "http://127.0.0.1:8200" #Non https url that resolves during setup

@@ -54,3 +54,42 @@
     headers:
       X-Vault-Token: "{{ ca_key.root_token }}"
   delegate_to: 127.0.0.1
+
+- name: Enable JWT
+  uri:
+    url: "{{ vault_url }}/v1/sys/auth/jwt"
+    method: POST
+    body: "{\"type\":\"jwt\"}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  when: not auth_engines.json["jwt/"] is defined
+
+- name: Configure JWT
+  uri:
+    url: "{{ vault_url }}/v1/auth/jwt/config"
+    method: POST
+    body: "{\"oidc_discovery_url\":\"{{ vault_oidc_url }}\", \"default_role\": \"reader\" } "
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+
+- name: Create Reader Role
+  uri:
+    url: "{{ vault_url }}/v1/auth/jwt/role/reader"
+    method: POST
+    body: "{\"bound_audiences\":\"{{ vault_jwt_client }}\", \"role_type\": \"jwt\",\
+           \"allowed_redirect_uris\":[\"{{ vault_jwt_rediect_uri }}\"], \
+           \"user_claim\": \"sub\", \"policies\": [\"default\"]}"
+    body_format: json
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1

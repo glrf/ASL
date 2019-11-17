@@ -1,0 +1,47 @@
+---
+- name: Read in key
+  include_vars:
+    file: "{{ vault_local_dir }}/key.json"
+    name: ca_key
+
+- name: Create Policy for service account
+  uri:
+    url: "{{ vault_url }}/v1/sys/policy/{{ vault_service_account }}"
+    method: PUT
+    body: 
+      policy: "{{ vault_service_policy }}"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+
+- name: Create token role for idp service
+  uri:
+    url: "{{ vault_url }}/v1/auth/token/roles/{{ vault_service_account }}"
+    method: POST
+    body: 
+      allowed_policies: 
+        - "{{ vault_service_account }}"
+      period: "720h"
+    body_format: json
+    status_code: 204
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+
+- name: Get token for idp service
+  uri:
+    url: "{{ vault_url }}/v1/auth/token/create/{{ vault_service_account }}"
+    method: POST
+    status_code: 200
+    validate_certs: false
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  register: token
+
+- set_fact:
+    vault_service_token: "{{ token.json.auth.client_token }}"

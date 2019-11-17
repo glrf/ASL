@@ -5,9 +5,17 @@
   vars:
     vault_oidc: false
 
+- hosts: 127.0.0.1
+  connection: local
+  roles:
+    - role: vault_add_ca
+  vars:
+    vault_url: "https://vault.fadalax.tech:8200"
+
 - hosts: hydra
   roles:
     - role: vault_issue_cert
+    - role: vault_add_ca
     - role: hydra
   vars_files:
     - ./vault
@@ -19,8 +27,12 @@
 - hosts: idp
   roles:
     - role: docker
+    - role: vault_service_token
+    - role: vault_add_ca
     - role: mysql
     - role: idp
+    - role: vault_issue_cert
+    - role: frontend
   vars_files:
     - ./vault
   vars:
