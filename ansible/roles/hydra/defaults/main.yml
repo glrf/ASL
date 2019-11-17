@@ -3,3 +3,8 @@ hydra_network: "hydra_net"
 hydra_version: "v1.0.8"
 hydra_system_secret: "{{ vault_hydra_system_secret }}"
 hydra_fadalax_frontend_secret: "{{ vault_hydra_fadalax_frontend_secret }}"
+
+postgres_user: "hydra"
+postgres_user_password: "changeme"
+postgres_database: "hydra"
+postgres_data_dir: "/home/{{ ansible_user_id }}/data"
