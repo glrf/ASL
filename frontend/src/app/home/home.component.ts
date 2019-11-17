@@ -7,9 +7,16 @@ import {UserService} from '../user.service';
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.css']
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
 
-  uid = 'a3';
+  uid = null;
 
-  constructor() {}
+  constructor(private oauthService: OAuthService) {
+  }
+
+  ngOnInit() {
+    const claims = this.oauthService.getIdentityClaims();
+    this.uid = claims['sub'];
+    console.log(this.uid);
+  }
 }

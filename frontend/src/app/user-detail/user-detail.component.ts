@@ -44,11 +44,13 @@ export class UserDetailComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.userService.getUserInfo(this.uid).subscribe(user => {
-      this.userInfo = user;
-      this.firstNameField.setValue(this.userInfo.firstName);
-      this.lastNameField.setValue(this.userInfo.lastName);
-      this.emailField.setValue(this.userInfo.email);
+    this.userService.getUserInfo().subscribe(user => {
+      if (user) {
+        this.userInfo = user;
+        this.firstNameField.setValue(this.userInfo.firstName);
+        this.lastNameField.setValue(this.userInfo.lastName);
+        this.emailField.setValue(this.userInfo.email);
+      }
     });
   }
 

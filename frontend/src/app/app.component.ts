@@ -27,8 +27,6 @@ export class AppComponent {
         console.log('logged in');
         console.log('User:' + this.oauthService.getIdentityClaims()['sub']);
       },
-      onLoginError: context => console.log(context),
-
     }).then(_ => {
       if (!this.oauthService.hasValidIdToken()) {
         this.oauthService.initImplicitFlow();
