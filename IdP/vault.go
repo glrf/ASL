@@ -223,7 +223,7 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 		return nil, err
 	}
 
-	res, err := exec.CommandContext( ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", fmt.Sprintf("%s/%s", dir, "private.key"),
+	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", fmt.Sprintf("%s/%s", dir, "private.key"),
 		"-in", fmt.Sprintf("%s/%s", dir, "cert.pem"), "-password", "pass:").Output()
 	if err != nil {
 		l.WithError(err).Error("Failed to convert file.")
@@ -232,4 +232,35 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 	l.Info("Issued Certificate")
 
 	return res, nil
+}
+
+func (v *vault) RevokeCerts(ctx context.Context, name string) error {
+	l := log.WithField("name", name)
+	if !regexp.MustCompile(alphanumeric).MatchString(name) {
+		l.Error("Invalid name format.")
+		return fmt.Errorf("invalid name format")
+	}
+	mountPath := fmt.Sprintf("/pki-user/%s", name)
+	certList, err := v.c.List(fmt.Sprintf("%s/certs", mountPath))
+	if err != nil {
+		l.WithError(err).Error("Failed to list cert.")
+		return err
+	}
+	keys, ok := certList.Data["keys"].([]interface{})
+	if !ok {
+		l.WithError(err).Error("Failed to list cert.")
+		return err
+	}
+	for _, k := range keys {
+		l := l.WithField("cert", k)
+		_, err := v.c.Write(fmt.Sprintf("%s/revoke", mountPath), map[string]interface{}{
+			"serial_number": k,
+		})
+		if err != nil {
+			l.WithError(err).Error("Failed to revoke cert.")
+		}
+		l.Info("Revoked cert")
+	}
+
+	return nil
 }

@@ -110,6 +110,7 @@ func main() {
 	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
 	r.HandleFunc("/user/password", ser.EditPw).Methods("PUT")
 	r.HandleFunc("/cert", ser.IssueCert).Methods("GET")
+	r.HandleFunc("/cert", ser.RevokeCert).Methods("DELETE")
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -428,6 +429,41 @@ func (s server) IssueCert(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/x-pkcs12")
 
 	w.Write(cert)
+}
+
+func (s server) RevokeCert(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	vc, err := NewVaultUserClient(*vaultURL, id, h)
+	if err != nil {
+		log.WithError(err).Error("Failed to create vault client.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	err = vc.RevokeCerts(ctx, id)
+	if err != nil {
+		log.WithError(err).Error("Failed to revoke certificate.")
+		s.httpUnauthorized(w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
 }
 
 func (s server) httpInternalError(w http.ResponseWriter, e error) {
