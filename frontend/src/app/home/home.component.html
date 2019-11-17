@@ -1,6 +1,5 @@
 <p>Hey</p>
-<div>
 
-  <app-user-detail [uid]=randomUid></app-user-detail>
-
+<div *ngIf="uid != null">
+  <app-user-detail [uid]="uid"></app-user-detail>
 </div>

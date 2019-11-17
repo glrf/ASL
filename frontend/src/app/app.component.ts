@@ -25,7 +25,7 @@ export class AppComponent {
     this.oauthService.loadDiscoveryDocumentAndTryLogin({
       onTokenReceived: context => {
         console.log('logged in');
-        console.log(context);
+        console.log('User:' + this.oauthService.getIdentityClaims()['sub']);
       },
       onLoginError: context => console.log(context),
 
