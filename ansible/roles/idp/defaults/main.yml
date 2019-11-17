@@ -1,5 +1,6 @@
 ---
-idp_container_network: "mysql_net"
+idp_container_db_network: "mysql_net"
+idp_container_dmz_network: "container_dmz"
 idp_db_user: "idp"
 idp_db_password: "{{ vault_mysql_user_password }}"
 idp_db_host: "user_db"
