@@ -105,10 +105,9 @@ func main() {
 
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
-	r.HandleFunc("/user/{id}", ser.GetUser).Methods("GET")
 	r.HandleFunc("/user", ser.GetUser).Methods("GET")
-	r.HandleFunc("/user/{id}", ser.EditUser).Methods("PUT")
 	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
+	r.HandleFunc("/user/password", ser.EditPw).Methods("PUT")
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -374,7 +373,7 @@ func (s server) EditPw(w http.ResponseWriter, r *http.Request) {
 
 	var pw struct{
 		Password    string `json:"password"`
-	}{}
+	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil || len(reqBody) == 0 {
 		l.WithError(err).Error("EditPw request without body")
