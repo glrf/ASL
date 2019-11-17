@@ -3,6 +3,7 @@ import {Observable, of} from 'rxjs';
 import {User} from './entities/user';
 import {HttpClient, HttpHeaders, HttpParams} from '@angular/common/http';
 import {OAuthService} from 'angular-oauth2-oidc';
+import {tokenize} from '@angular/compiler/src/ml_parser/lexer';
 
 @Injectable({
   providedIn: 'root'
@@ -14,13 +15,10 @@ export class UserService {
   constructor(private http: HttpClient, private oauthService: OAuthService) {
   }
 
-  getUserInfo(userId: string): Observable<User> {
-    // return this.http.get<User>(this.baseUrl + 'user/' + userId);
-    return of({
-      uid: userId,
-      firstName: 'userFirstName',
-      lastName: 'userLastName',
-      email: 'user@email.ch',
+  getUserInfo(): Observable<User> {
+    this.oauthService.events.subscribe()
+    return this.http.get<User>(this.baseUrl + 'user', {
+      headers: new HttpHeaders('Authorization: Bearer ' + this.oauthService.getIdToken())
     });
   }
 
