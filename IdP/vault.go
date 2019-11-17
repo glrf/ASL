@@ -56,7 +56,7 @@ func NewVaultUserClient(vaultAddress string, name string, jwtoken string) (*vaul
 		return nil, err
 	}
 
-	c.SetToken(tok.Data["client_token"].(string))
+	c.SetToken(tok.Auth.ClientToken)
 	if c.Token() == "" {
 		return nil, fmt.Errorf("missing vault client token")
 	}
@@ -174,7 +174,7 @@ func (v *vault) CreatePKIUser(name string) error {
 
 	// Add jwt role
 	_, err = v.c.Write(fmt.Sprintf("/auth/jwt/role/%s", name), map[string]interface{}{
-		"bound_audiences": "vault",
+		"bound_audiences": "fadalax-frontend",
 		"user_claim":      "sub",
 		"policies":        fmt.Sprintf("pki-user/%s", name),
 		"bound_subject":   name,

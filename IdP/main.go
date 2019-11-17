@@ -425,7 +425,7 @@ func (s server) IssueCert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Disposition", "attachment; filename=cert.p12")
-	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+	w.Header().Set("Content-Type", "application/x-pkcs12")
 
 	w.Write(cert)
 }
