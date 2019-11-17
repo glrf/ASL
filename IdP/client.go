@@ -155,6 +155,7 @@ type TokenIntrospectionResponse struct {
 
 func (c HydraClient) IntrospectToken(jwtToken string) (string, error) {
 	url := fmt.Sprintf("%s%s", c.adminUrl, tokenIntrospectionPath)
+	log.Info(jwtToken)
 	res, err := http.Post(url, "application/x-www-form-urlencoded", strings.NewReader(jwtToken))
 	if err != nil {
 		log.WithError(err).Error("Failed to sent token introspection request.")

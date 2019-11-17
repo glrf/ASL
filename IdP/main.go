@@ -24,6 +24,7 @@ var listen = flag.String("listen", ":8088", "on what url to start the server on"
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
 var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200", "URL of the Vault instance")
 var issuer = flag.String("issuer", "https://hydra.fadalax.tech:9000/", "OpenID Connect issuer")
+var clientID = flag.String("clientID", "fadalax-frontend", "Client id")
 
 type server struct {
 	router          *mux.Router
@@ -50,7 +51,7 @@ type storageClient interface {
 
 type TokenValidator interface {
 	// Validate returns the uid if the token in authHeader is valid, an error otherwise.
-	Validate(authHeader string) (string, error)
+	Validate(ctx context.Context, authHeader string) (string, error)
 }
 
 type vaultClient interface {
@@ -73,7 +74,7 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create storage component.")
 	}
-	auth, err := NewValidator(*issuer, hydra)
+	auth, err := NewValidator(*issuer, *clientID)
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create token validation component.")
 	}
@@ -246,22 +247,11 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.auth.Validate(h)
+	id, err := s.auth.Validate(r.Context(), h)
 	if err != nil {
 		log.WithError(err).Error("Failed to validate authorization token.")
 		s.httpUnauthorized(w)
 		return
-	}
-
-	if id == "" {
-		vars := mux.Vars(r)
-		vid, ok := vars["id"]
-		if !ok {
-			log.Error("GetUser request without ID.")
-			s.httpBadRequest(w, "missing user id")
-			return
-		}
-		id = vid
 	}
 
 	u, err := s.db.GetUser(ctx, id)
