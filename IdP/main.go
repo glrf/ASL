@@ -38,7 +38,7 @@ type server struct {
 	templateConsent *template.Template
 }
 
-const emailRegex =  "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+const emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 
 type hydraAdminClient interface {
 	GetLoginInfo(challenge string) (LoginInfo, error)
@@ -64,6 +64,7 @@ type vaultClient interface {
 	CreatePKIUser(name string) error
 }
 
+
 func main() {
 	log.SetLevel(log.TraceLevel) // log all the things
 	flag.Parse()
@@ -84,7 +85,7 @@ func main() {
 		log.WithError(err).Fatal("Failed to create token validation component.")
 	}
 	// Reads token from VAULT_TOKEN automatically.
-	vc, err := NewVaultClient(*vaultURL)
+	vc, err := NewVaultClient(*vaultURL, "")
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
@@ -108,6 +109,7 @@ func main() {
 	r.HandleFunc("/user", ser.GetUser).Methods("GET")
 	r.HandleFunc("/user", ser.EditUser).Methods("PUT")
 	r.HandleFunc("/user/password", ser.EditPw).Methods("PUT")
+	r.HandleFunc("/cert", ser.IssueCert).Methods("GET")
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -371,8 +373,8 @@ func (s server) EditPw(w http.ResponseWriter, r *http.Request) {
 	}
 	l = l.WithField("uid", id)
 
-	var pw struct{
-		Password    string `json:"password"`
+	var pw struct {
+		Password string `json:"password"`
 	}
 	reqBody, err := ioutil.ReadAll(r.Body)
 	if err != nil || len(reqBody) == 0 {
@@ -391,6 +393,42 @@ func (s server) EditPw(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "ok")
 }
 
+func (s server) IssueCert(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	vc, err := NewVaultUserClient(*vaultURL, id, h)
+	if err != nil {
+		log.WithError(err).Error("Failed to create vault client.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	cert, err := vc.GetCert(ctx, id)
+	if err != nil {
+		log.WithError(err).Error("Failed to create certificate.")
+		s.httpUnauthorized(w)
+		return
+	}
+	w.Header().Set("Content-Disposition", "attachment; filename=cert.p12")
+	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+
+	w.Write(cert)
+}
 
 func (s server) httpInternalError(w http.ResponseWriter, e error) {
 	if e != nil {
