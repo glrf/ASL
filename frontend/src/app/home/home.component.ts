@@ -17,6 +17,5 @@ export class HomeComponent implements OnInit {
   ngOnInit() {
     const claims = this.oauthService.getIdentityClaims();
     this.uid = claims['sub'];
-    console.log(this.uid);
   }
 }

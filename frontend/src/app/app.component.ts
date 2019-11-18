@@ -20,14 +20,8 @@ export class AppComponent {
 
   private configure() {
     this.oauthService.configure(authConfig);
-    this.oauthService.events.subscribe(event => console.log(event));
     this.oauthService.tokenValidationHandler = new NullValidationHandler();
-    this.oauthService.loadDiscoveryDocumentAndTryLogin({
-      onTokenReceived: context => {
-        console.log('logged in');
-        console.log('User:' + this.oauthService.getIdentityClaims()['sub']);
-      },
-    }).then(_ => {
+    this.oauthService.loadDiscoveryDocumentAndTryLogin().then(_ => {
       if (!this.oauthService.hasValidIdToken()) {
         this.oauthService.initImplicitFlow();
         return false;
