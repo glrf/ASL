@@ -128,6 +128,7 @@ func main() {
 		http.MethodPut,
 		http.MethodPost,
 		http.MethodOptions,
+		http.MethodDelete,
 	}), handlers.AllowedHeaders([]string{"Authorization", "Content-Type"}),
 	handlers.AllowCredentials())(r)
 	// Run
