@@ -129,7 +129,7 @@ func main() {
 		http.MethodPost,
 		http.MethodOptions,
 		http.MethodDelete,
-	}), handlers.AllowedHeaders([]string{"Authorization", "Content-Type"}),
+	}), handlers.AllowedHeaders([]string{"Authorization", "Content-Type", "Content-Disposition"}),
 	handlers.AllowCredentials())(r)
 	// Run
 	log.Fatal(http.ListenAndServe(*listen, h))
