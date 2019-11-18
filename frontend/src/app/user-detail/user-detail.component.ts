@@ -87,8 +87,7 @@ export class UserDetailComponent implements OnInit {
       if (result !== -1) {
         // user wants to change password - result is of type ChangePasswordDialogData
         const passwordData = (result as ChangePasswordDialogData);
-        this.userService.changeUserPassword(this.uid, passwordData.newPassword)
-          .subscribe(success => console.log('Password change successfull: ' + success));
+        this.userService.changeUserPassword(this.uid, passwordData.newPassword).subscribe();
       } // else: user cancelled change password request / nothing has to be done
     });
   }
