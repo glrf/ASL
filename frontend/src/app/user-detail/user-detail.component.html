@@ -35,9 +35,14 @@
   </div>
 
   <div *ngIf="!editEnabled">
-    <button (click)="startIssueCertificateProcess()"> Issue Certificate </button>
     <button (click)="enableEditUserInfo()"> Edit User Information </button>
     <button (click)="startChangePasswordProcess()"> Change Password </button>
+    <button (click)="downloadCertificate() "> Issue Certificate </button>
+    <button (click)="revokeCertificate()"> Revoke Certificate </button>
+  </div>
+
+  <div>
+    <a #downloadCertLink></a>
   </div>
 
 </div>
