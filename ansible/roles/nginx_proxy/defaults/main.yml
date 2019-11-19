@@ -4,5 +4,7 @@ nginx_proxy_net: "container_dmz"
 nginx_proxy_backends:
   - domain: fadalax.tech
     container_name: frontend
+    client_certs: no
   - domain: idp.fadalax.tech
     container_name: idp
+    client_certs: yes
