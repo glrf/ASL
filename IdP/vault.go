@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -210,7 +209,7 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 		return nil, err
 	}
 
-	defer os.RemoveAll(dir) // clean up
+	// defer os.RemoveAll(dir) // clean up
 
 	priv := filepath.Join(dir, "private.key")
 	if err := ioutil.WriteFile(priv, []byte(cert.Data["private_key"].(string)), 0666); err != nil {
@@ -218,13 +217,12 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 		return nil, err
 	}
 	certf := filepath.Join(dir, "cert.pem")
-	if err := ioutil.WriteFile(certf, []byte(cert.Data["certificate"].(string)), 0666); err != nil {
+	if err := ioutil.WriteFile(certf, []byte(cert.Data["issuing_ca"].(string) + "\n" + cert.Data["certificate"].(string)), 0666); err != nil {
 		l.WithError(err).Error("Failed to write cert.")
 		return nil, err
 	}
 
-	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", fmt.Sprintf("%s/%s", dir, "private.key"),
-		"-in", fmt.Sprintf("%s/%s", dir, "cert.pem"), "-password", "pass:").Output()
+	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", priv, "-in", certf, "-password", "pass:").Output()
 	if err != nil {
 		l.WithError(err).Error("Failed to convert file.")
 		return nil, err
