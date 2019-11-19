@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 )
@@ -100,6 +101,14 @@ func (v *vault) CreatePKIUser(name string) error {
 	if err != nil {
 		l.WithError(err).Error("Failed to mount PKI.")
 		return err
+	}
+
+	// Configure new PKI engine
+	_, err = v.c.Write(path.Join(mountPath, "config/urls"), map[string]interface{}{
+		"crl_distribution_points": fmt.Sprintf("https://vault.fadalax.tech:8200/v1/%s/crl", mountPath),
+	})
+	if err != nil {
+		l.WithError(err).Error("Failed to configure new PKI engine.")
 	}
 
 	// Generate intermediate
