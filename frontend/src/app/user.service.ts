@@ -5,6 +5,7 @@ import {HttpClient, HttpHeaders, HttpParams, HttpResponse} from '@angular/common
 import {OAuthService} from 'angular-oauth2-oidc';
 import {tokenize} from '@angular/compiler/src/ml_parser/lexer';
 import {catchError, map} from 'rxjs/operators';
+import {Certificate} from './entities/certificate';
 
 @Injectable({
   providedIn: 'root'
@@ -36,6 +37,36 @@ export class UserService {
 
   changeUserPassword(userId: string, newPassword: string): Observable<boolean> {
     return this.http.put(this.baseUrl + 'user/password', {password: newPassword}, {
+      headers: new HttpHeaders('Authorization: Bearer ' + this.oauthService.getIdToken()),
+      responseType: 'text',
+      observe: 'response'
+    }).pipe(
+      map(response => {
+        return response.ok;
+      })
+    );
+  }
+
+  issueCertificate(): Observable<string> {
+    return this.http.get(this.baseUrl + 'cert', {
+      headers: new HttpHeaders('Authorization: Bearer ' + this.oauthService.getIdToken()),
+      responseType: 'text'
+    }).pipe(
+      map(res => {
+        return res;
+      })
+    );
+  }
+
+
+  public downloadResource(): Observable<Blob> {
+    return this.http.get(this.baseUrl + 'cert', {
+      headers: new HttpHeaders('Authorization: Bearer ' + this.oauthService.getIdToken()),
+      responseType: 'blob'});
+  }
+
+  revokeCertificates(): Observable<boolean> {
+    return this.http.delete(this.baseUrl + 'cert', {
       headers: new HttpHeaders('Authorization: Bearer ' + this.oauthService.getIdToken()),
       responseType: 'text',
       observe: 'response'
