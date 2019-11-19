@@ -21,6 +21,9 @@ import (
 
 const (
 	authorization = "authorization"
+	fadalaxAuthHeader = "x-fadalax-auth"
+	fadalaxAuthRegex = `^CN=([[:alnum:]]+)@fadalax\.tech$`
+	emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 )
 
 var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
@@ -39,8 +42,6 @@ type server struct {
 	templateLogin   *template.Template
 	templateConsent *template.Template
 }
-
-const emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 
 type hydraAdminClient interface {
 	GetLoginInfo(challenge string) (LoginInfo, error)
@@ -156,11 +157,33 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 	username := info.Subject
 
 	if r.Method == http.MethodGet && !info.Skip {
-		err := s.templateLogin.Execute(w, map[string]interface{}{})
-		if err != nil {
-			s.httpInternalError(w, err)
+		authHeader := r.Header.Get(fadalaxAuthHeader)
+		log.WithField("hdr", authHeader).Info("fadalax-auth-header yey")
+		r := regexp.MustCompile(fadalaxAuthRegex)
+		foundMatch := false
+		for _, hdr := range strings.Split(authHeader, ",") {
+			ms := r.FindStringSubmatch(hdr)
+			if len(ms) != 2 {
+				log.Errorf("length not 2: %v %v", hdr, ms)
+				continue
+			}
+			if username != "" && username != ms[1] {
+				log.Error("wrong username: %v != %v", ms[1], username)
+				continue
+			}
+			foundMatch = true
+			username = ms[1]
+			break
 		}
-		return
+		if foundMatch {
+			authenticated = true
+		} else {
+			err := s.templateLogin.Execute(w, map[string]interface{}{})
+			if err != nil {
+				s.httpInternalError(w, err)
+			}
+			return
+		}
 	}
 
 	if r.Method == http.MethodPost {
