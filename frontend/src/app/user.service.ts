@@ -1,11 +1,9 @@
 import { Injectable } from '@angular/core';
-import {Observable, of} from 'rxjs';
+import {Observable} from 'rxjs';
 import {User} from './entities/user';
-import {HttpClient, HttpHeaders, HttpParams, HttpResponse} from '@angular/common/http';
+import {HttpClient, HttpHeaders} from '@angular/common/http';
 import {OAuthService} from 'angular-oauth2-oidc';
-import {tokenize} from '@angular/compiler/src/ml_parser/lexer';
-import {catchError, map} from 'rxjs/operators';
-import {Certificate} from './entities/certificate';
+import {map} from 'rxjs/operators';
 
 @Injectable({
   providedIn: 'root'
@@ -15,6 +13,10 @@ export class UserService {
   private baseUrl = 'https://idp.fadalax.tech/';
 
   constructor(private http: HttpClient, private oauthService: OAuthService) {
+  }
+
+  logOut() {
+      this.oauthService.logOut();
   }
 
   getUserInfo(): Observable<User> {

@@ -4,7 +4,7 @@ import { NgModule } from '@angular/core';
 import { AppComponent } from './app.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { UserDetailComponent } from './user-detail/user-detail.component';
-import {MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule} from '@angular/material';
+import {MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSnackBarModule} from '@angular/material';
 import {ReactiveFormsModule} from '@angular/forms';
 import { ChangePasswordDialogComponent } from './change-password-dialog/change-password-dialog.component';
 import {HttpClientModule} from '@angular/common/http';
@@ -27,6 +27,7 @@ import {APP_ROUTES} from './app.routes';
     MatFormFieldModule,
     ReactiveFormsModule,
     MatInputModule,
+    MatSnackBarModule,
     MatDialogModule,
     HttpClientModule,
     OAuthModule.forRoot({

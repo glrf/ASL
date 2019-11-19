@@ -1,11 +1,10 @@
 import {Component, ElementRef, Input, OnInit, ViewChild} from '@angular/core';
 import {User} from '../entities/user';
 import {FormControl, Validators} from '@angular/forms';
-import {MatDialog} from '@angular/material';
+import {MatDialog, MatSnackBar} from '@angular/material';
 import {ChangePasswordDialogComponent} from '../change-password-dialog/change-password-dialog.component';
 import {ChangePasswordDialogData} from '../entities/changePasswordDialogData';
 import {UserService} from '../user.service';
-import {Certificate} from '../entities/certificate';
 
 @Component({
   selector: 'app-user-detail',
@@ -35,15 +34,16 @@ export class UserDetailComponent implements OnInit {
   lastNameField = new FormControl('');
   emailField = new FormControl('', [Validators.required, Validators.email]);
 
+  constructor(
+    private userService: UserService,
+    private dialog: MatDialog,
+    private snackbar: MatSnackBar) {
+  }
+
   getErrorMessage() {
     return this.emailField.hasError('required') ? 'You must enter a value' :
       this.emailField.hasError('email') ? 'Not a valid email' :
         '';
-  }
-
-  constructor(
-    private userService: UserService,
-    private dialog: MatDialog) {
   }
 
   ngOnInit() {
@@ -77,6 +77,10 @@ export class UserDetailComponent implements OnInit {
       });
   }
 
+  logout() {
+      this.userService.logOut();
+  }
+
   startChangePasswordProcess() {
     const dialogRef = this.dialog.open(ChangePasswordDialogComponent, {
       data: {
@@ -107,15 +111,15 @@ export class UserDetailComponent implements OnInit {
       window.URL.revokeObjectURL(url);
 
     });
-
-
-
   }
 
   revokeCertificate() {
     this.userService.revokeCertificates().subscribe(success => {
       if (success) {
         this.certificate = null;
+        const snackBarRef = this.snackbar.open('All certificates have been revoked', '', {
+          duration: 3000,
+        });
       }
     });
   }
