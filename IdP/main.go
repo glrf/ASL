@@ -22,6 +22,7 @@ import (
 const (
 	authorization = "authorization"
 	fadalaxAuthHeader = "x-fadalax-auth"
+	fadalaxCertSerialHeader = "x-fadalax-serial"
 	fadalaxAuthRegex = `^CN=([[:alnum:]]+)@fadalax\.tech$`
 	emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 )
@@ -65,6 +66,7 @@ type TokenValidator interface {
 type vaultClient interface {
 	PKIRoleExists(role string) (bool, error)
 	CreatePKIUser(name string) error
+	CertificateIsValid(pkiMount, serial string) (bool, error)
 }
 
 
@@ -158,11 +160,10 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet && !info.Skip {
 		authHeader := r.Header.Get(fadalaxAuthHeader)
-		log.WithField("hdr", authHeader).Info("fadalax-auth-header yey")
-		r := regexp.MustCompile(fadalaxAuthRegex)
+		regex := regexp.MustCompile(fadalaxAuthRegex)
 		foundMatch := false
 		for _, hdr := range strings.Split(authHeader, ",") {
-			ms := r.FindStringSubmatch(hdr)
+			ms := regex.FindStringSubmatch(hdr)
 			if len(ms) != 2 {
 				log.Errorf("length not 2: %v %v", hdr, ms)
 				continue
@@ -176,8 +177,35 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		if foundMatch {
-			authenticated = true
-		} else {
+			certSerial := r.Header.Get(fadalaxCertSerialHeader)
+			if certSerial == "" {
+				log.Warn("Empty certificate serial passed.")
+				s.httpUnauthorized(w)
+				return
+			}
+			// serial needs to be split AA:BB:CC
+			if !strings.ContainsRune(certSerial, ':') && !strings.ContainsRune(certSerial, '-') {
+				if len(certSerial) % 2 != 0 {
+					s.httpUnauthorized(w)
+					return
+				}
+				elems := make([]string, len(certSerial) / 2)
+				for i := 0; i < len(certSerial); i += 2 {
+					elems[i/2] = certSerial[i:i+2]
+				}
+				certSerial = strings.Join(elems, ":")
+			}
+			pkiMount := fmt.Sprintf("pki-user/%s", username)
+			authenticated, err = s.vault.CertificateIsValid(pkiMount, certSerial)
+			if err != nil {
+				log.WithError(err).WithField("serial", certSerial).Error("Failed to ask vault whether the certificate has been revoked.")
+				s.httpUnauthorized(w)
+				return
+			}
+		}
+
+		// Cert auth failed, show login
+		if !authenticated {
 			err := s.templateLogin.Execute(w, map[string]interface{}{})
 			if err != nil {
 				s.httpInternalError(w, err)

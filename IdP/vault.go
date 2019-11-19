@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
@@ -10,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"time"
 )
 
 const alphanumeric = "[[:alnum:]]"
@@ -194,6 +196,29 @@ func (v *vault) CreatePKIUser(name string) error {
 	}
 
 	return nil
+}
+
+func (v *vault) CertificateIsValid(pkiMount string, certSerial string) (bool, error) {
+	p := path.Join("/", pkiMount, "cert", certSerial)
+	log.WithFields(log.Fields{
+		"serial": certSerial,
+		"path": p,
+	}).Debug("checking certificate")
+	cert, err := v.c.Read(p)
+	if err != nil || cert == nil {
+		log.WithError(err).Error("Failed to check certificate for validity check")
+		return false, err
+	}
+	rts, ok := cert.Data["revocation_time"]
+	if !ok {
+		return false, fmt.Errorf("no revocation_time")
+	}
+	ts, err := rts.(json.Number).Int64()
+	if err != nil {
+		return false, err
+	}
+	// not revoked, or revoked in the future
+	return ts == 0 || time.Unix(ts, 0).After(time.Now()), nil
 }
 
 func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
