@@ -222,9 +222,12 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 		l.WithError(err).Error("Failed to write cert.")
 		return nil, err
 	}
+	chainf := filepath.Join(dir, "chain.pem")
+	if err := ioutil.WriteFile(chainf, []byte(cert.Data["ca_chain"].(string)), 066); err != nil {
+		l.WithError(err).Error("Failed to write cert chain.")
+	}
 
-	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", fmt.Sprintf("%s/%s", dir, "private.key"),
-		"-in", fmt.Sprintf("%s/%s", dir, "cert.pem"), "-password", "pass:").Output()
+	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", priv, "-in", certf, "-chain", chainf, "-password", "pass:").Output()
 	if err != nil {
 		l.WithError(err).Error("Failed to convert file.")
 		return nil, err
