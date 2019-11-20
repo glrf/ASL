@@ -9,6 +9,32 @@
   docker_network:
     name: "{{ hydra_network }}"
 
+- name: Create and Start postgres Container
+  docker_container:
+    name: hydra_db
+    image: postgres
+    networks:
+      - name: "{{ hydra_network }}"
+    state: started
+    volumes:
+      - "{{ postgres_data_dir }}:/var/lib/mysql"
+    env:
+      POSTGRES_DATABASE: "{{ postgres_database }}"
+      POSTGRES_USER: "{{ postgres_user }}"
+      POSTGRES_PASSWORD: "{{ postgres_user_password }}"
+
+- name: migrate
+  docker_container:
+    name: hydra-exec-migrate
+    image: "oryd/hydra:{{ hydra_version }}"
+    command: "migrate sql --yes postgres://{{ postgres_user }}:{{ postgres_user_password }}@hydra_db:5432/{{ postgres_database }}?sslmode=disable"
+    networks:
+      - name:  "{{ hydra_network }}"
+    env:
+      SECRETS_SYSTEM: "{{ hydra_system_secret }}"
+      HYDRA_ADMIN_URL: "https://hydra:4445"
+
+
 - name: Create hydra container
   docker_container:
     name: hydra
@@ -21,7 +47,7 @@
     networks:
       - name:  "{{ hydra_network }}"
     env:
-      DSN: memory
+      DSN: "postgres://{{ postgres_user }}:{{ postgres_user_password }}@hydra_db:5432/{{ postgres_database }}?sslmode=disable"
       SECRETS_SYSTEM: "{{ hydra_system_secret }}"
       URLS_SELF_ISSUER: "{{ hydra_self_issuer }}"
       URLS_CONSENT: "{{ hydra_idp_url }}/consent"
@@ -30,10 +56,10 @@
       SERVE_TLS_CERT_PATH: "/cert.pem"
       LOG_LEVEL: "debug"
       SERVE_PUBLIC_CORS_ENABLED: "true"
-      SERVE_PUBLIC_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE" 
+      SERVE_PUBLIC_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE"
       SERVE_ADMIN_CORS_ENABLED: "true"
-      SERVE_ADMIN_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE" 
-      
+      SERVE_ADMIN_CORS_ALLOWED_METHODS: "POST,GET,PUT,DELETE"
+
     volumes:
       - /home/vagrant/cert.key:/cert.key
       - /home/vagrant/cert.pem:/cert.pem
