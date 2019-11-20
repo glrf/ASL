@@ -11,7 +11,7 @@ import {HttpClientModule} from '@angular/common/http';
 import {OAuthModule} from 'angular-oauth2-oidc';
 import { HomeComponent } from './home/home.component';
 import {RouterModule} from '@angular/router';
-import {User} from './entities/user';
+import {APP_ROUTES} from './app.routes';
 
 @NgModule({
   declarations: [
@@ -29,11 +29,13 @@ import {User} from './entities/user';
     MatInputModule,
     MatDialogModule,
     HttpClientModule,
-    OAuthModule.forRoot(),
-    RouterModule.forRoot([
-      {path: '', component: HomeComponent},
-      {path: 'token', component: UserDetailComponent}
-    ])
+    OAuthModule.forRoot({
+      resourceServer: {
+        allowedUrls: ['https://idp.fadalax.tech/'],
+        sendAccessToken: true
+      }
+    }),
+    RouterModule.forRoot(APP_ROUTES)
   ],
   entryComponents: [
     ChangePasswordDialogComponent
@@ -42,3 +44,4 @@ import {User} from './entities/user';
   bootstrap: [AppComponent]
 })
 export class AppModule { }
+

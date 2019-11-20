@@ -7,27 +7,40 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	log "github.com/sirupsen/logrus"
 	"html"
 	"html/template"
+	"io/ioutil"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
+)
+
+const (
+	authorization = "authorization"
 )
 
 var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
 var listen = flag.String("listen", ":8088", "on what url to start the server on")
 var dsn = flag.String("dsn", "", "DSN of the DB to connect to: user:password@/dbname")
 var vaultURL = flag.String("vault-url", "https://vault.fadalax.tech:8200", "URL of the Vault instance")
+var issuer = flag.String("issuer", "https://hydra.fadalax.tech:9000/", "OpenID Connect issuer")
+var clientID = flag.String("clientID", "fadalax-frontend", "Client id")
 
 type server struct {
 	router          *mux.Router
+	auth            TokenValidator
 	hydra           hydraAdminClient
 	db              storageClient
 	vault           vaultClient
 	templateLogin   *template.Template
 	templateConsent *template.Template
 }
+
+const emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 
 type hydraAdminClient interface {
 	GetLoginInfo(challenge string) (LoginInfo, error)
@@ -40,12 +53,19 @@ type storageClient interface {
 	GetUser(ctx context.Context, userID string) (User, error)
 	ChangePassword(ctx context.Context, userID string, password string) error
 	Login(ctx context.Context, userID string, password string) bool
+	EditUser(ctx context.Context, user User) error
+}
+
+type TokenValidator interface {
+	// Validate returns the uid if the token in authHeader is valid, an error otherwise.
+	Validate(ctx context.Context, authHeader string) (string, error)
 }
 
 type vaultClient interface {
 	PKIRoleExists(role string) (bool, error)
 	CreatePKIUser(name string) error
 }
+
 
 func main() {
 	log.SetLevel(log.TraceLevel) // log all the things
@@ -62,15 +82,19 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create storage component.")
 	}
+	auth, err := NewValidator(*issuer, *clientID)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to create token validation component.")
+	}
 	// Reads token from VAULT_TOKEN automatically.
-	vc, err := NewVaultClient(*vaultURL)
+	vc, err := NewVaultClient(*vaultURL, "")
 	if err != nil {
 		log.WithError(err).Fatal("Failed to create vault client.")
 	}
 
 	// Prepare HTTP server
 	r := mux.NewRouter()
-	ser := server{hydra: &hydra, router: r, db: db, vault: vc}
+	ser := server{hydra: &hydra, router: r, db: db, vault: vc, auth: auth}
 
 	// Prepare template
 	ser.templateLogin, err = template.ParseFiles("./template/login.html")
@@ -84,7 +108,11 @@ func main() {
 
 	r.HandleFunc("/login", ser.Login)
 	r.HandleFunc("/consent", ser.Consent)
-	r.HandleFunc("/user/{id}", ser.GetUser)
+	r.HandleFunc("/cert", ser.IssueCert).Methods(http.MethodGet)
+	r.HandleFunc("/cert", ser.RevokeCert).Methods(http.MethodDelete)
+	r.HandleFunc("/user", ser.GetUser).Methods(http.MethodGet)
+	r.HandleFunc("/user", ser.EditUser).Methods(http.MethodPut)
+	r.HandleFunc("/user/password", ser.EditPw).Methods(http.MethodPut)
 	// Kind of a smoke test.
 	u, err := ser.db.GetUser(context.Background(), "a3")
 	if err != nil {
@@ -92,8 +120,18 @@ func main() {
 	} else {
 		log.WithField("user", u).Info("Found user.")
 	}
+	// Setup CORS
+	h := handlers.CORS(handlers.AllowedOriginValidator(func(o string) bool {
+		return strings.HasSuffix(o, "fadalax.tech")
+	}), handlers.AllowedMethods([]string{
+		http.MethodGet,
+		http.MethodPut,
+		http.MethodPost,
+		http.MethodOptions,
+	}), handlers.AllowedHeaders([]string{"Authorization"}),
+	handlers.AllowCredentials())(r)
 	// Run
-	log.Fatal(http.ListenAndServe(*listen, r))
+	log.Fatal(http.ListenAndServe(*listen, h))
 }
 
 func (s server) Login(w http.ResponseWriter, r *http.Request) {
@@ -115,8 +153,6 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 
 	authenticated := info.Skip
 	username := info.Subject
-
-	// TODO(Fischi): We don't actually use the information we get. We should
 
 	if r.Method == http.MethodGet && !info.Skip {
 		err := s.templateLogin.Execute(w, map[string]interface{}{})
@@ -223,13 +259,20 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
-	vars := mux.Vars(r)
-	id, ok := vars["id"]
-	if !ok {
-		log.Error("GetUser request without ID.")
-		s.httpBadRequest(w, "missing user id")
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
 		return
 	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
 	u, err := s.db.GetUser(ctx, id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -247,6 +290,192 @@ func (s server) GetUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.httpInternalError(w, err)
 	}
+}
+
+func (s server) EditUser(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+	l := log.WithField("uid", id)
+
+	var u User
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil || len(reqBody) == 0 {
+		l.WithError(err).Error("EditUser request without body")
+		s.httpBadRequest(w, "Could not parse body.")
+		return
+	}
+	err = json.Unmarshal(reqBody, &u)
+	if err != nil {
+		l.WithError(err).Error("EditUser error unmarshaling json")
+		s.httpInternalError(w, fmt.Errorf("failed to parse body"))
+		return
+	}
+
+	if id != u.UserID {
+		l.Error("EditUser user id does not match")
+		s.httpBadRequest(w, "id does not match id in json object")
+		return
+	}
+
+	if !regexp.MustCompile(alphanumeric).MatchString(u.UserID) || len(u.UserID) == 0 {
+		l.Error("Invalid id format.")
+		s.httpBadRequest(w, "Invalid id format")
+		return
+	}
+	if !regexp.MustCompile(alphanumeric).MatchString(u.FirstName) || len(u.FirstName) == 0 {
+		l.Error("Invalid first name format.")
+		s.httpBadRequest(w, "Invalid first name format")
+		return
+	}
+	if !regexp.MustCompile(alphanumeric).MatchString(u.UserID) || len(u.LastName) == 0 {
+		l.Error("Invalid last name format.")
+		s.httpBadRequest(w, "Invalid last name format")
+		return
+	}
+	if !regexp.MustCompile(emailRegex).MatchString(u.Email) || len(u.Email) == 0 {
+		l.Error("Invalid email format.")
+		s.httpBadRequest(w, "Invalid email format")
+		return
+	}
+
+	err = s.db.EditUser(ctx, u)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.WithField("user-id", u.UserID).Warn("user not found")
+			s.httpNotFound(w)
+			return
+		}
+		log.WithError(err).WithField("user-id", u.UserID).Error("Failed to edit user.")
+		s.httpInternalError(w, fmt.Errorf("failed to edit user"))
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
+
+}
+
+func (s server) EditPw(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	l := log.WithField("method", "EditPw")
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+	l = l.WithField("uid", id)
+
+	var pw struct {
+		Password string `json:"password"`
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil || len(reqBody) == 0 {
+		l.WithError(err).Error("EditPw request without body")
+		s.httpBadRequest(w, "Could not parse body.")
+		return
+	}
+	err = json.Unmarshal(reqBody, &pw)
+	if err != nil {
+		l.WithError(err).Error("EditPw error unmarshaling json")
+		s.httpInternalError(w, fmt.Errorf("failed to parse body"))
+		return
+	}
+	s.db.ChangePassword(ctx, id, pw.Password)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
+}
+
+func (s server) IssueCert(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	vc, err := NewVaultUserClient(*vaultURL, id, h)
+	if err != nil {
+		log.WithError(err).Error("Failed to create vault client.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	cert, err := vc.GetCert(ctx, id)
+	if err != nil {
+		log.WithError(err).Error("Failed to create certificate.")
+		s.httpUnauthorized(w)
+		return
+	}
+	w.Header().Set("Content-Disposition", "attachment; filename=cert.p12")
+	w.Header().Set("Content-Type", "application/x-pkcs12")
+
+	w.Write(cert)
+}
+
+func (s server) RevokeCert(w http.ResponseWriter, r *http.Request) {
+	log.Debugf("%s, %q", r.Method, html.EscapeString(r.URL.Path))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	h := r.Header.Get(authorization)
+	if h == "" {
+		log.Warn("Missing authorization header in request to GetUser.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	id, err := s.auth.Validate(r.Context(), h)
+	if err != nil {
+		log.WithError(err).Error("Failed to validate authorization token.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	vc, err := NewVaultUserClient(*vaultURL, id, h)
+	if err != nil {
+		log.WithError(err).Error("Failed to create vault client.")
+		s.httpUnauthorized(w)
+		return
+	}
+
+	err = vc.RevokeCerts(ctx, id)
+	if err != nil {
+		log.WithError(err).Error("Failed to revoke certificate.")
+		s.httpUnauthorized(w)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintln(w, "ok")
 }
 
 func (s server) httpInternalError(w http.ResponseWriter, e error) {

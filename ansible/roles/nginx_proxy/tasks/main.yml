@@ -1,0 +1,36 @@
+---
+- name: Install python docker module
+  become: true
+  package:
+    name: python-docker
+    state: present
+
+- name: Create DMZ network
+  docker_network:
+    name: "{{ nginx_proxy_net }}"
+
+- name: nginx config dir
+  file:
+    path: /home/vagrant/nginx
+    mode: '0755'
+    state: directory
+- name: Template a file to /nginx-proxy.conf
+  template:
+    src: templates/nginx.conf.j2
+    dest: /home/vagrant/nginx/nginx-proxy.conf
+    owner: vagrant
+    mode: '0644'
+
+- docker_container:
+    name: proxy
+    image: nginx
+    networks:
+      - name: "{{ nginx_proxy_net }}"
+    state: started
+    published_ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/usr/local/share/ca-certificates/:/etc/ssl/certs:ro"
+      - "/home/vagrant/nginx/nginx-proxy.conf:/etc/nginx/nginx.conf:ro"
+      - "/home/vagrant/:/etc/nginx/ssl/:ro"

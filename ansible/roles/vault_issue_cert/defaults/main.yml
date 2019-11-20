@@ -3,6 +3,7 @@ vault_local_dir: "~/.vault/"
 vautl_url: "localhost:8200"
 
 vault_issue_domain: "example.invalid"
+vault_issue_alt_name: ""
 vault_issue_role: "sys-internal"
 vault_issue_ssl_cert_folder: /cert
 vault_issue_ssl_cert: /cert/cert.cert

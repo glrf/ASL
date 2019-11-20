@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/hashicorp/vault/api"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 )
 
@@ -14,17 +19,45 @@ type vault struct {
 	sys *api.Sys
 }
 
-func NewVaultClient(vaultAddress string) (*vault, error) {
+func NewVaultClient(vaultAddress string, token string) (*vault, error) {
 	// Reads token from VAULT_TOKEN automatically.
 	c, err := api.NewClient(&api.Config{
 		Address: vaultAddress,
 	})
+	if token != "" {
+		c.SetToken(token)
+	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create Vault client")
 		return nil, err
 	}
 	if c.Token() == "" {
 		log.Error("No VAULT_TOKEN set.")
+		return nil, fmt.Errorf("missing vault client token")
+	}
+	return &vault{c: c.Logical(), sys: c.Sys()}, nil
+}
+
+func NewVaultUserClient(vaultAddress string, name string, jwtoken string) (*vault, error) {
+	// Reads token from VAULT_TOKEN automatically.
+	c, err := api.NewClient(&api.Config{
+		Address: vaultAddress,
+	})
+	m := regexp.MustCompile(bearerToken).FindStringSubmatch(jwtoken)
+	if len(m) != 2 {
+		return nil, fmt.Errorf("malformed Authorization header")
+	}
+	tok, err := c.Logical().Write("auth/jwt/login", map[string]interface{}{
+		"role": name,
+		"jwt":  m[1],
+	})
+	if err != nil {
+		log.WithError(err).Error("Failed to login.")
+		return nil, err
+	}
+
+	c.SetToken(tok.Auth.ClientToken)
+	if c.Token() == "" {
 		return nil, fmt.Errorf("missing vault client token")
 	}
 	return &vault{c: c.Logical(), sys: c.Sys()}, nil
@@ -128,26 +161,106 @@ func (v *vault) CreatePKIUser(name string) error {
 
 	// Add oidc role
 	_, err = v.c.Write(fmt.Sprintf("/auth/oidc/role/%s", name), map[string]interface{}{
-		"bound_audiences": "vault",
+		"bound_audiences":       "vault",
 		"allowed_redirect_uris": "https://vault.fadalax.tech:8200/ui/vault/auth/oidc/oidc/callback",
-		"user_claim": "sub",
-		"policies": fmt.Sprintf("pki-user/%s", name),
-		"bound_subject": name,
+		"user_claim":            "sub",
+		"policies":              fmt.Sprintf("pki-user/%s", name),
+		"bound_subject":         name,
 	})
 	if err != nil {
 		l.WithError(err).Error("Failed to create oidc role.")
 		return err
 	}
 
-	/*
-		vault write auth/oidc/role/kv-mgr \
-			bound_audiences="$AUTH0_CLIENT_ID" \
-			allowed_redirect_uris="http://127.0.0.1:8200/ui/vault/auth/oidc/oidc/callback" \
-			allowed_redirect_uris="http://localhost:8250/oidc/callback" \
-			user_claim="sub" \
-			policies="reader" \
-			groups_claim="https://example.com/roles"
+	// Add jwt role
+	_, err = v.c.Write(fmt.Sprintf("/auth/jwt/role/%s", name), map[string]interface{}{
+		"bound_audiences": "fadalax-frontend",
+		"user_claim":      "sub",
+		"policies":        fmt.Sprintf("pki-user/%s", name),
+		"bound_subject":   name,
+		"role_type":       "jwt",
+	})
+	if err != nil {
+		l.WithError(err).Error("Failed to create jwt role.")
+		return err
+	}
 
-	*/
+	return nil
+}
+
+func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
+	l := log.WithField("name", name)
+	if !regexp.MustCompile(alphanumeric).MatchString(name) {
+		l.Error("Invalid name format.")
+		return nil, fmt.Errorf("invalid name format")
+	}
+	mountPath := fmt.Sprintf("/pki-user/%s", name)
+	cert, err := v.c.Write(fmt.Sprintf("%s/issue/%s", mountPath, name), map[string]interface{}{
+		"common_name": fmt.Sprintf("%s@fadalax.tech", name),
+		"ttl":         "336h",
+	})
+	if err != nil {
+		l.WithError(err).Error("Failed to issue cert.")
+		return nil, err
+	}
+
+	dir, err := ioutil.TempDir("", "cert")
+	if err != nil {
+		l.WithError(err).Error("Failed to create tmp dir.")
+		return nil, err
+	}
+
+	defer os.RemoveAll(dir) // clean up
+
+	priv := filepath.Join(dir, "private.key")
+	if err := ioutil.WriteFile(priv, []byte(cert.Data["private_key"].(string)), 0666); err != nil {
+		l.WithError(err).Error("Failed to write key.")
+		return nil, err
+	}
+	certf := filepath.Join(dir, "cert.pem")
+	if err := ioutil.WriteFile(certf, []byte(cert.Data["certificate"].(string)), 0666); err != nil {
+		l.WithError(err).Error("Failed to write cert.")
+		return nil, err
+	}
+
+	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", fmt.Sprintf("%s/%s", dir, "private.key"),
+		"-in", fmt.Sprintf("%s/%s", dir, "cert.pem"), "-password", "pass:").Output()
+	if err != nil {
+		l.WithError(err).Error("Failed to convert file.")
+		return nil, err
+	}
+	l.Info("Issued Certificate")
+
+	return res, nil
+}
+
+func (v *vault) RevokeCerts(ctx context.Context, name string) error {
+	l := log.WithField("name", name)
+	if !regexp.MustCompile(alphanumeric).MatchString(name) {
+		l.Error("Invalid name format.")
+		return fmt.Errorf("invalid name format")
+	}
+	mountPath := fmt.Sprintf("/pki-user/%s", name)
+	certList, err := v.c.List(fmt.Sprintf("%s/certs", mountPath))
+	if err != nil {
+		l.WithError(err).Error("Failed to list cert.")
+		return err
+	}
+	keys, ok := certList.Data["keys"].([]interface{})
+	if !ok {
+		l.WithError(err).Error("Failed to list cert.")
+		return err
+	}
+	for _, k := range keys {
+		l := l.WithField("cert", k)
+		_, err := v.c.Write(fmt.Sprintf("%s/revoke", mountPath), map[string]interface{}{
+			"serial_number": k,
+		})
+		if err != nil {
+			l.WithError(err).Error("Failed to revoke cert.")
+		}
+		l.Info("Revoked cert")
+	}
+
 	return nil
 }

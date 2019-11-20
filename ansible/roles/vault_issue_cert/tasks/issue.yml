@@ -8,7 +8,7 @@
   uri:
     url: "{{ vault_url }}/v1/pki/issue/{{ vault_issue_role }}"
     method: POST
-    body: "{\"common_name\": \"{{ vault_issue_domain }}\", \"ttl\": 315360000}"
+    body: "{\"common_name\": \"{{ vault_issue_domain }}\", \"ttl\": 315360000, \"alt_names\": \"{{ vault_issue_alt_name }}\"}"
     body_format: json
     status_code: 200
     headers:

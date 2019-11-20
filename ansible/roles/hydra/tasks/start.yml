@@ -69,7 +69,7 @@
     --grant-types authorization_code,refresh_token,client_credentials,implicit \
     --response-types token,code,id_token \
     --scope testp,openid,offline \
-    --callbacks https://fadalax.tech/token"
+    --callbacks https://fadalax.tech/index.html"
     networks:
       - name:  "{{ hydra_network }}"
     env:

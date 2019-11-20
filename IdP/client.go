@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
+
+const tokenIntrospectionPath = "/oauth2/introspect"
 
 type HydraClient struct {
 	client   *http.Client
@@ -143,4 +147,28 @@ func (c HydraClient) AcceptConsent(challenge string, req AcceptConsentRequest) (
 		return AcceptConsentResponse{}, err
 	}
 	return responseRedirect, nil
+}
+
+type TokenIntrospectionResponse struct {
+	active bool
+}
+
+func (c HydraClient) IntrospectToken(jwtToken string) (string, error) {
+	url := fmt.Sprintf("%s%s", c.adminUrl, tokenIntrospectionPath)
+	log.Info(jwtToken)
+	res, err := http.Post(url, "application/x-www-form-urlencoded", strings.NewReader(jwtToken))
+	if err != nil {
+		log.WithError(err).Error("Failed to sent token introspection request.")
+		return "", err
+	}
+	defer res.Body.Close()
+	d := json.NewDecoder(res.Body)
+	i := TokenIntrospectionResponse{}
+	err = d.Decode(&i)
+	log.Info(i)
+	if err != nil {
+		log.WithError(err).Error("Failed to unmarshal token introspection response.")
+		return "", err
+	}
+	return "", nil
 }

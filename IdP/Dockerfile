@@ -11,6 +11,6 @@ COPY --from=0 /go/src/app/idp .
 COPY template template
 RUN apt-get update && apt-get install -y --no-install-recommends \
           ca-certificates
-CMD ["sh", "-c", "./idp -dsn $RUNTIME_DSN -admin-url $RUNTIME_HYDRA_ADMIN"]
+CMD ["sh", "-c", "./idp -dsn $RUNTIME_DSN -admin-url $RUNTIME_HYDRA_ADMIN -listen $RUNTIME_LISTEN"]
 
 

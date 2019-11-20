@@ -21,7 +21,7 @@
     - ./vault
   vars:
     hydra_self_issuer: "https://hydra.fadalax.tech:9000"
-    hydra_idp_url: "http://idp.fadalax.tech:8088"
+    hydra_idp_url: "http://idp.fadalax.tech"
     hydra_vault_url: "https://vault.fadalax.tech:8200"
 
 - hosts: idp
@@ -33,6 +33,7 @@
     - role: idp
     - role: vault_issue_cert
     - role: frontend
+    - role: nginx_proxy
   vars_files:
     - ./vault
   vars:
