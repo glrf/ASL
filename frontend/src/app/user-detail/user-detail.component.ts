@@ -1,13 +1,10 @@
-import {Component, Input, OnInit} from '@angular/core';
+import {Component, ElementRef, Input, OnInit, ViewChild} from '@angular/core';
 import {User} from '../entities/user';
-import {UserService} from '../user.service';
 import {FormControl, Validators} from '@angular/forms';
-import {first} from 'rxjs/operators';
-import {MatDialog, MatDialogRef} from '@angular/material';
+import {MatDialog, MatSnackBar} from '@angular/material';
 import {ChangePasswordDialogComponent} from '../change-password-dialog/change-password-dialog.component';
 import {ChangePasswordDialogData} from '../entities/changePasswordDialogData';
-import {ActivatedRoute} from '@angular/router';
-import {OAuthService} from 'angular-oauth2-oidc';
+import {UserService} from '../user.service';
 
 @Component({
   selector: 'app-user-detail',
@@ -18,6 +15,11 @@ export class UserDetailComponent implements OnInit {
 
   @Input()
   public uid;
+
+
+  @ViewChild('downloadCertLink', {static: false}) private downloadCertLink: ElementRef;
+
+  certificate: string;
 
   public userInfo: User = {
     uid: '',
@@ -32,15 +34,16 @@ export class UserDetailComponent implements OnInit {
   lastNameField = new FormControl('');
   emailField = new FormControl('', [Validators.required, Validators.email]);
 
+  constructor(
+    private userService: UserService,
+    private dialog: MatDialog,
+    private snackbar: MatSnackBar) {
+  }
+
   getErrorMessage() {
     return this.emailField.hasError('required') ? 'You must enter a value' :
       this.emailField.hasError('email') ? 'Not a valid email' :
         '';
-  }
-
-  constructor(
-    private userService: UserService,
-    private dialog: MatDialog) {
   }
 
   ngOnInit() {
@@ -74,7 +77,8 @@ export class UserDetailComponent implements OnInit {
       });
   }
 
-  startIssueCertificateProcess() {
+  logout() {
+      this.userService.logOut();
   }
 
   startChangePasswordProcess() {
@@ -87,9 +91,36 @@ export class UserDetailComponent implements OnInit {
       if (result !== -1) {
         // user wants to change password - result is of type ChangePasswordDialogData
         const passwordData = (result as ChangePasswordDialogData);
-        this.userService.changeUserPassword(this.uid, passwordData.newPassword)
-          .subscribe(success => console.log('Password change successfull: ' + success));
+        this.userService.changeUserPassword(this.uid, passwordData.newPassword).subscribe();
       } // else: user cancelled change password request / nothing has to be done
+    });
+  }
+
+  issueCertificate() {
+    this.userService.issueCertificate().subscribe(res => this.certificate = res);
+  }
+
+  downloadCertificate() {
+    this.userService.downloadResource().subscribe(res => {
+      const url = window.URL.createObjectURL(res);
+      const link = this.downloadCertLink.nativeElement;
+      link.href = url;
+      link.download = 'cert.p12';
+      link.click();
+
+      window.URL.revokeObjectURL(url);
+
+    });
+  }
+
+  revokeCertificate() {
+    this.userService.revokeCertificates().subscribe(success => {
+      if (success) {
+        this.certificate = null;
+        const snackBarRef = this.snackbar.open('All certificates have been revoked', '', {
+          duration: 3000,
+        });
+      }
     });
   }
 

@@ -1,5 +1,7 @@
 <div>
-  <h3>Your user info:</h3>
+  <button mat-raised-button color=primary (click)="logout()"> Logout </button>
+
+  <h4>Your user information:</h4>
 
   <div *ngIf="!editEnabled">
     <ul>
@@ -31,13 +33,18 @@
   </div>
 
   <div *ngIf="editEnabled">
-    <button (click)="saveUserInfo()"> Save </button>
+    <button mat-raised-button (click)="saveUserInfo()"> Save </button>
   </div>
 
   <div *ngIf="!editEnabled">
-    <button (click)="startIssueCertificateProcess()"> Issue Certificate </button>
-    <button (click)="enableEditUserInfo()"> Edit User Information </button>
-    <button (click)="startChangePasswordProcess()"> Change Password </button>
+    <button mat-raised-button color="primary" (click)="enableEditUserInfo()"> Edit User Information </button>
+    <button mat-raised-button color=primary (click)="startChangePasswordProcess()"> Change Password </button>
+    <button mat-raised-button color=primary (click)="downloadCertificate() "> Issue Certificate </button>
+    <button mat-raised-button color=primary (click)="revokeCertificate()"> Revoke Certificate </button>
+  </div>
+
+  <div>
+    <a #downloadCertLink></a>
   </div>
 
 </div>

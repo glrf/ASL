@@ -15,7 +15,7 @@
 - name: Create and start idp container
   docker_container:
     name: idp
-    image: fadalax/asl-idp:v0.0.2
+    image: fadalax/asl-idp:v0.0.4
     volumes:
       - "/etc/ssl/:/etc/ssl:ro"
     networks:

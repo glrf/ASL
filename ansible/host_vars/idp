@@ -8,7 +8,8 @@ path "pki-user/+/intermediate/generate/internal" {capabilities = [ "create",  "r
 path "pki/root/sign-intermediate" {capabilities = [ "create", "update"]}
 path "pki-user/+/intermediate/set-signed" {capabilities = [ "create", "update"]}
 path "pki-user/+/roles*" {capabilities = [ "create", "update"]}
-path "sys/policy/pki-user*" {capabilities = [ "create", "read", "update"]}'
+path "sys/policy/pki-user*" {capabilities = [ "create", "read", "update"]}
+path "sys/policy/kv-user*" {capabilities = [ "create", "read", "update"]}'
 
 vault_issue_domain: "fadalax.tech"
 vault_issue_alt_name: "idp.fadalax.tech"
