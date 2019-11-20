@@ -49,6 +49,7 @@
 - hosts: client
   roles:
     - role: vault_add_ca
+    - role: vault_service_token
     - role: vault_issue_cert
     - role: client
   vars:

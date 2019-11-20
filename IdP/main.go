@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	authorization = "authorization"
-	fadalaxAuthHeader = "x-fadalax-auth"
+	authorization           = "authorization"
+	fadalaxAuthHeader       = "x-fadalax-auth"
 	fadalaxCertSerialHeader = "x-fadalax-serial"
-	fadalaxAuthRegex = `^CN=([[:alnum:]]+)@fadalax\.tech$`
-	emailRegex = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+	fadalaxAuthRegex        = `^CN=([[:alnum:]]+)@fadalax\.tech$`
+	emailRegex              = "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
 )
 
 var hydraAdminURL = flag.String("admin-url", "https://localhost:9001", "URL of the hydra admin api")
@@ -68,7 +68,6 @@ type vaultClient interface {
 	CreatePKIUser(name string) error
 	CertificateIsValid(pkiMount, serial string) (bool, error)
 }
-
 
 func main() {
 	log.SetLevel(log.TraceLevel) // log all the things
@@ -133,7 +132,7 @@ func main() {
 		http.MethodOptions,
 		http.MethodDelete,
 	}), handlers.AllowedHeaders([]string{"Authorization", "Content-Type", "Content-Disposition"}),
-	handlers.AllowCredentials())(r)
+		handlers.AllowCredentials())(r)
 	// Run
 	log.Fatal(http.ListenAndServe(*listen, h))
 }
@@ -185,17 +184,20 @@ func (s server) Login(w http.ResponseWriter, r *http.Request) {
 			}
 			// serial needs to be split AA:BB:CC
 			if !strings.ContainsRune(certSerial, ':') && !strings.ContainsRune(certSerial, '-') {
-				if len(certSerial) % 2 != 0 {
+				if len(certSerial)%2 != 0 {
 					s.httpUnauthorized(w)
 					return
 				}
-				elems := make([]string, len(certSerial) / 2)
+				elems := make([]string, len(certSerial)/2)
 				for i := 0; i < len(certSerial); i += 2 {
-					elems[i/2] = certSerial[i:i+2]
+					elems[i/2] = certSerial[i : i+2]
 				}
 				certSerial = strings.Join(elems, ":")
 			}
 			pkiMount := fmt.Sprintf("pki-user/%s", username)
+			if username == "admin" {
+				pkiMount = "pki"
+			}
 			authenticated, err = s.vault.CertificateIsValid(pkiMount, certSerial)
 			if err != nil {
 				log.WithError(err).WithField("serial", certSerial).Error("Failed to ask vault whether the certificate has been revoked.")

@@ -43,5 +43,23 @@
   delegate_to: 127.0.0.1
   register: token
 
+- name: Set OIDC role if requested
+  uri:
+    url: "{{ vault_url }}/v1/auth/oidc/role/{{ vault_service_account }}"
+    method: POST
+    status_code: 200
+    validate_certs: false
+    body_format: json
+    body: 
+      bound_audiences: "vault"
+      allowed_redirect_uris: "https://vault.fadalax.tech:8200/ui/vault/auth/oidc/oidc/callback"
+      user_claim: "sub"
+      policies: "{{ vault_service_account }}"
+      bound_subject: "admin"
+    headers:
+      X-Vault-Token: "{{ ca_key.root_token }}"
+  delegate_to: 127.0.0.1
+  when: token_oidc is defined and token_oidc
+
 - set_fact:
     vault_service_token: "{{ token.json.auth.client_token }}"
