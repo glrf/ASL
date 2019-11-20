@@ -46,6 +46,16 @@
   vars:
     vault_oidc: true
 
+- hosts: client
+  roles:
+    - role: vault_add_ca
+    - role: vault_issue_cert
+    - role: client
+  vars:
+    vault_oidc: true
+
+
+
 
 
 

@@ -3,6 +3,7 @@ vault ansible_ssh_host=vault.fadalax.tech ansible_ssh_user=vagrant
 hydra ansible_ssh_host=hydra.fadalax.tech ansible_ssh_user=vagrant
 idp   ansible_ssh_host=idp.fadalax.tech ansible_ssh_user=vagrant
 backup   ansible_ssh_host=backup.fadalax.tech ansible_ssh_user=vagrant
+client   ansible_ssh_host=client.fadalax.tech ansible_ssh_user=vagrant
 
 [docker]
 hydra 

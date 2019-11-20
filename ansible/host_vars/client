@@ -1,0 +1,16 @@
+---
+vault_url: "https://vault.fadalax.tech:8200"
+vault_service_account: "ca-admin"
+vault_service_policy: '
+path "sys/mounts/*" {capabilities = [ "create", "read", "update", "delete", "list" ]}
+path "pki-user/+/intermediate/generate/internal" {capabilities = [ "create",  "read", "list", "update"]}
+path "pki/root/sign-intermediate" {capabilities = [ "create", "update"]}
+path "pki-user/+/intermediate/set-signed" {capabilities = [ "create", "update"]}
+path "pki-user/+/roles*" {capabilities = [ "create", "update"]}'
+
+vault_issue_domain: "admin@fadalax.tech"
+vault_issue_ssl_cert_folder: /home/client
+vault_issue_ssl_cert: /home/client/cert.pem
+vault_issue_ssl_key: /home/client/cert.key
+
+
