@@ -15,3 +15,6 @@ vault_oidc_secret: "test12345678"
 vault_oidc_rediect_uri: "https://vault.fadalax.tech:8200/ui/vault/auth/oidc/oidc/callback"
 vault_jwt_client: "fadalax-frontend"
 vault_jwt_rediect_uri: "https://fadalax.tech/token"
+
+backup_sources:
+  - "/var/vault"

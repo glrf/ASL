@@ -15,3 +15,8 @@ vault_issue_alt_name: "idp.fadalax.tech"
 vault_issue_ssl_cert_folder: /home/vagrant
 vault_issue_ssl_cert: /home/vagrant/cert.pem
 vault_issue_ssl_key: /home/vagrant/cert.key
+
+
+backup_docker_dir: "/home/{{ ansible_user_id }}/docker-logs"
+backup_sources:
+  - "/home/{{ ansible_user_id }}/data"

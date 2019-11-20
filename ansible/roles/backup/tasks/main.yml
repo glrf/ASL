@@ -22,8 +22,19 @@
   become: true
   delegate_to: backup
 
+- name: Create  directory if it does not exist
+  file:
+    path: "{{ backup_docker_dir }}"
+    state: directory
+  when: backup_docker_dir is defined
+
+- name: Output docker logs into tmp file
+  shell: "docker ps -q | xargs -L 1 docker logs > {{ backup_docker_dir }}/docker-{{ ansible_date_time.epoch }}.log"
+  become: yes
+  when: backup_docker_dir is defined
+
 - name: Create target directory
-  command: "ssh {{ inventory_hostname }}-backup@backup.fadalax.tech mkdir -p /home/{{ inventory_hostname }}-backup{{ item }}"
+  command: "ssh -oStrictHostKeyChecking=no {{ inventory_hostname }}-backup@backup.fadalax.tech mkdir -p /home/{{ inventory_hostname }}-backup{{ item }}"
   become: yes
   with_items: "{{ backup_sources }}"
   when: backup_sources is defined
@@ -33,3 +44,8 @@
   become: yes
   with_items: "{{ backup_sources }}"
   when: backup_sources is defined
+
+- name: Backup docker
+  command: "/usr/bin/rsync -e \"ssh -o StrictHostKeyChecking=no\"--delay-updates -F --compress -avzhe ssh {{ backup_docker_dir }} {{ inventory_hostname }}-backup@backup.fadalax.tech:/home/{{ inventory_hostname }}-backup{{ backup_docker_dir }}"
+  become: yes
+  when: backup_docker_dir is defined
