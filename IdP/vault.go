@@ -26,12 +26,12 @@ func NewVaultClient(vaultAddress string, token string) (*vault, error) {
 	c, err := api.NewClient(&api.Config{
 		Address: vaultAddress,
 	})
-	if token != "" {
-		c.SetToken(token)
-	}
 	if err != nil {
 		log.WithError(err).Error("Failed to create Vault client")
 		return nil, err
+	}
+	if token != "" {
+		c.SetToken(token)
 	}
 	if c.Token() == "" {
 		log.Error("No VAULT_TOKEN set.")
@@ -45,6 +45,10 @@ func NewVaultUserClient(vaultAddress string, name string, jwtoken string) (*vaul
 	c, err := api.NewClient(&api.Config{
 		Address: vaultAddress,
 	})
+	if err != nil {
+		log.WithError(err).Error("Failed to create Vault client")
+		return nil, err
+	}
 	m := regexp.MustCompile(bearerToken).FindStringSubmatch(jwtoken)
 	if len(m) != 2 {
 		return nil, fmt.Errorf("malformed Authorization header")
