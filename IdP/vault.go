@@ -105,14 +105,6 @@ func (v *vault) CreatePKIUser(name string) error {
 		return err
 	}
 
-	// Configure new PKI engine
-	_, err = v.c.Write(path.Join(mountPath, "config/urls"), map[string]interface{}{
-		"crl_distribution_points": fmt.Sprintf("https://vault.fadalax.tech:8200/v1/%s/crl", mountPath),
-	})
-	if err != nil {
-		l.WithError(err).Error("Failed to configure new PKI engine.")
-	}
-
 	// Generate intermediate
 	interCAReq, err := v.c.Write(fmt.Sprintf("%s/intermediate/generate/internal", mountPath), map[string]interface{}{
 		"common_name": fmt.Sprintf("%s.fadalax.tech", name),
@@ -174,7 +166,7 @@ func (v *vault) CreatePKIUser(name string) error {
 		"bound_audiences":       "vault",
 		"allowed_redirect_uris": "https://vault.fadalax.tech:8200/ui/vault/auth/oidc/oidc/callback",
 		"user_claim":            "sub",
-		"policies":              fmt.Sprintf("pki-user/%s", name),
+		"policies":              []string{fmt.Sprintf("pki-user/%s", name), fmt.Sprintf("kv-user/%s", name)},
 		"bound_subject":         name,
 	})
 	if err != nil {
@@ -186,12 +178,36 @@ func (v *vault) CreatePKIUser(name string) error {
 	_, err = v.c.Write(fmt.Sprintf("/auth/jwt/role/%s", name), map[string]interface{}{
 		"bound_audiences": "fadalax-frontend",
 		"user_claim":      "sub",
-		"policies":        fmt.Sprintf("pki-user/%s", name),
+		"policies":        []string{fmt.Sprintf("pki-user/%s", name), fmt.Sprintf("kv-user/%s", name)},
 		"bound_subject":   name,
 		"role_type":       "jwt",
 	})
 	if err != nil {
 		l.WithError(err).Error("Failed to create jwt role.")
+		return err
+	}
+
+	// Mount key-val storage for priv keys of certs
+	mountPath = fmt.Sprintf("/kv-user/%s", name)
+	mountInput = &api.MountInput{
+		Type:        "kv",
+		Description: fmt.Sprintf("Key value storage for keys of user %s", name),
+		Config: api.MountConfigInput{
+			MaxLeaseTTL: "43800h",
+		},
+	}
+	err = v.sys.Mount(mountPath, mountInput)
+	if err != nil {
+		l.WithError(err).Error("Failed to mount KV.")
+		return err
+	}
+
+	// Add policy
+	_, err = v.c.Write(fmt.Sprintf("/sys/policy%s", mountPath), map[string]interface{}{
+		"policy": fmt.Sprintf("path \"%s/*\" {capabilities = [ \"create\", \"read\", \"update\", \"delete\", \"list\", \"sudo\" ]}", mountPath),
+	})
+	if err != nil {
+		l.WithError(err).Error("Failed to create kv policy.")
 		return err
 	}
 
@@ -202,7 +218,7 @@ func (v *vault) CertificateIsValid(pkiMount string, certSerial string) (bool, er
 	p := path.Join("/", pkiMount, "cert", certSerial)
 	log.WithFields(log.Fields{
 		"serial": certSerial,
-		"path": p,
+		"path":   p,
 	}).Debug("checking certificate")
 	cert, err := v.c.Read(p)
 	if err != nil || cert == nil {
@@ -245,19 +261,23 @@ func (v *vault) GetCert(ctx context.Context, name string) ([]byte, error) {
 
 	// defer os.RemoveAll(dir) // clean up
 
+	certSerial := cert.Data["serial_number"].(string)
+	// save the private key into the users KV
+	_, err = v.c.Write(fmt.Sprintf("/kv-user/%s/%s", name, certSerial), cert.Data)
+	if err != nil {
+		l.WithError(err).Error("Failed to archive cert in vault")
+		return nil, err
+	}
+
 	priv := filepath.Join(dir, "private.key")
 	if err := ioutil.WriteFile(priv, []byte(cert.Data["private_key"].(string)), 0666); err != nil {
 		l.WithError(err).Error("Failed to write key.")
 		return nil, err
 	}
 	certf := filepath.Join(dir, "cert.pem")
-	if err := ioutil.WriteFile(certf, []byte(cert.Data["issuing_ca"].(string) + "\n" + cert.Data["certificate"].(string)), 0666); err != nil {
+	if err := ioutil.WriteFile(certf, []byte(cert.Data["issuing_ca"].(string)+"\n"+cert.Data["certificate"].(string)), 0666); err != nil {
 		l.WithError(err).Error("Failed to write cert.")
 		return nil, err
-	}
-	chainf := filepath.Join(dir, "chain.pem")
-	if err := ioutil.WriteFile(chainf, []byte(cert.Data["ca_chain"].(string)), 066); err != nil {
-		l.WithError(err).Error("Failed to write cert chain.")
 	}
 
 	res, err := exec.CommandContext(ctx, "/usr/bin/openssl", "pkcs12", "-export", "-inkey", priv, "-in", certf, "-password", "pass:").Output()
